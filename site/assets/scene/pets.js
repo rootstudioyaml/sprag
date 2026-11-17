@@ -556,14 +556,18 @@ const wearColor = look => WEAR_FIXED.includes(look.body) ? WEAR_COLOR[look.body]
    the walk) and its thickness stands out from the head. s: the shape numbers makePet already has (hr, cat, bl, bw, kb, puff, headFur, bodyFur), in
    the head joint's space. Pure, so tests can check it. */
 export const PET_COLLAR_N = 48;
+/* how much of the fur's length the collar, the harness and the clothes sit above the skin: the rest of the coat stands round them */
+export const PET_WEAR_FUR = 0.35;
 export function petCollarFrame(look, s){
   const kh = 1 + 0.5 * (s.kb - 1), w = 0.05 * kh, N = PET_COLLAR_N;
-  const hc = [0, 0.1, 0.04], hR = [s.hr * (s.cat ? 1.1 : 1) + s.headFur, s.hr * (s.cat ? 0.93 : 1) + s.headFur, s.hr + s.headFur];
-  const bc = [0, -0.08, -s.bl * 0.72], bR = [s.bw * s.puff + s.bodyFur, 0.115 * s.kb * s.puff + s.bodyFur, s.bl + s.bodyFur];
+  /* the head and the body with PET_WEAR_FUR of their fur: a collar sits down in the coat, as on a real dog. Over the full fur plus the shell jitter
+     (until 3.130.0-8) it stood 1.6 fur lengths off the skin, and where the shells are off (a pet small on screen) it hung in the air round the neck */
+  const hf = s.headFur * PET_WEAR_FUR, bf = s.bodyFur * PET_WEAR_FUR;
+  const hc = [0, 0.1, 0.04], hR = [s.hr * (s.cat ? 1.1 : 1) + hf, s.hr * (s.cat ? 0.93 : 1) + hf, s.hr + hf];
+  const bc = [0, -0.08, -s.bl * 0.72], bR = [s.bw * s.puff + bf, 0.115 * s.kb * s.puff + bf, s.bl + bf];
   const hb = bc.map((x, i) => x - hc[i]), hl = Math.hypot(...hb), a = hb.map(x => x / hl), u = [1, 0, 0];
   const v0 = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]], vl = Math.hypot(...v0), v = v0.map(x => x / vl);   /* v = a x u: perpendicular to the axis, forward and down */
-  /* the gap over the modelled fur: the shell shader also jitters the surface itself by up to 0.55 of the fur length (coatMat) */
-  const gap = 0.004 + 0.6 * Math.max(s.headFur, s.bodyFur);
+  const gap = 0.003;
   const inB = p => ((p[0] - bc[0]) / bR[0]) ** 2 + ((p[1] - bc[1]) / bR[1]) ** 2 + ((p[2] - bc[2]) / bR[2]) ** 2;
   const onHead = e => { const k = 1 / Math.sqrt((e[0] / hR[0]) ** 2 + (e[1] / hR[1]) ** 2 + (e[2] / hR[2]) ** 2); return hc.map((x, i) => x + e[i] * k); };
   const pts = [], nrm = [], wid = [];
@@ -571,11 +575,23 @@ export function petCollarFrame(look, s){
     const th = i / N * Math.PI * 2, d = u.map((x, k) => Math.cos(th) * x + Math.sin(th) * v[k]);
     /* walk psi from the axis (facing the body) toward the far side of the head; the crease is the first point outside the body */
     let ps = Math.PI;
-    for(let q = 0; q <= Math.PI; q += 0.02){ const e = a.map((x, k) => Math.cos(q) * x + Math.sin(q) * d[k]); if(inB(onHead(e)) >= 1){ ps = q; break; } }
+    const at = q => onHead(a.map((x, k) => Math.cos(q) * x + Math.sin(q) * d[k]));
+    if(inB(at(0)) >= 1){
+      /* the head does not reach into the body (a long, thin body and no fur): no crease, so the band runs where the head comes nearest the body
+         away from the axis, never all at the axis point, which collapsed the ring to a dot */
+      let best = Infinity; for(let q = 0.3; q <= Math.PI / 2; q += 0.02){ const v = inB(at(q)); if(v < best){ best = v; ps = q; } }
+    }else for(let q = 0; q <= Math.PI; q += 0.02){ if(inB(at(q)) >= 1){ ps = q; break; } }
     const e = a.map((x, k) => Math.cos(ps) * x + Math.sin(ps) * d[k]), t = a.map((x, k) => -Math.sin(ps) * x + Math.cos(ps) * d[k]), P = onHead(e);
     /* lifted along the head's normal; where that grazes the body (a thin neck), pushed out of the body along its own normal as well */
     const p = P.map((x, k) => x + e[k] * gap);
-    for(let n = 0; n < 40 && inB(p) < 1; n++){ const g = p.map((x, k) => (x - bc[k]) / (bR[k] * bR[k])), gl = Math.hypot(...g); for(let k = 0; k < 3; k++) p[k] += g[k] / gl * 0.002; }
+    /* out of both the body and the head: each step pushes along the normal of whichever still holds the point (a push out of the body can go into
+       an overhanging head) */
+    const inH = x => ((x[0] - hc[0]) / hR[0]) ** 2 + ((x[1] - hc[1]) / hR[1]) ** 2 + ((x[2] - hc[2]) / hR[2]) ** 2;
+    const grad = (x, o, R) => { const g = x.map((v, k) => (v - o[k]) / (R[k] * R[k])), l = Math.hypot(...g) || 1; return g.map(v => v / l); };
+    for(let n = 0; n < 120; n++){ const ib = inB(p), ih = inH(p); if(ib >= 1 && ih >= 1) break;
+      /* in the fold between the two (a thin neck) each normal alone pushes into the other shape, so near both the push follows their sum */
+      const gb = ib < 1.08 ? grad(p, bc, bR) : [0, 0, 0], gh = ih < 1.08 ? grad(p, hc, hR) : [0, 0, 0], g = unit3(gb.map((v, k) => v + gh[k]));
+      for(let k = 0; k < 3; k++) p[k] += g[k] * 0.002; }
     pts.push(p); nrm.push(e); wid.push(t.map(x => -x));   /* wid: along the walk, from the head toward the body */
   }
   /* the tag hangs straight down from the band's front (th = 90 degrees, the v direction), just clear of it */
@@ -873,7 +889,8 @@ export function makePet(T, raw, o = {}){
     }else if(look.body === 'harness' || look.body === 'vest' || look.body === 'raincoat' || look.body === 'cape'){
       /* body pieces: the body ellipsoid in the body node's space, and the collar frame's points moved into it (the head joint sits 0.08 above the body node
          and 0.72 of the body's length ahead of it, at rest) */
-      const W = PET_WEAR_K, bodyR = [bw * puff + bodyFur, 0.115 * kb * puff + bodyFur, bl + bodyFur], gp = cf.gap, toBody = q => [q[0], q[1] + 0.08, q[2] + 0.72 * bl], N = cf.pts.length;
+      const W = PET_WEAR_K, bf = bodyFur * PET_WEAR_FUR, clothFur = bodyFur * (1 - PET_WEAR_FUR) * 0.85, bodyR = [bw * puff + bf, 0.115 * kb * puff + bf, bl + bf],   /* clothFur: cloth covers the coat and presses it down, so the vest, the raincoat and the cape stand nearly at the fur's full length; straps sink into it */
+       gp = cf.gap, toBody = q => [q[0], q[1] + 0.08, q[2] + 0.72 * bl], N = cf.pts.length;
       const addMesh = (geo, m, parent) => { const o = new T.Mesh(K.geo(geo), m); o.receiveShadow = true; o.castShadow = false; parent.add(o); return o; };
       const ringOn = (at, n, sc, parent) => { const g = place(parent, at, n); mesh(G.tor, mat('metal', 0.35), g, 0, 0, 0, sc, sc, sc); return g; };   /* a D-ring (an open ring lying on the cloth) */
       if(look.body === 'harness'){
@@ -887,14 +904,14 @@ export function makePet(T, raw, o = {}){
         const mid = back[Math.floor(back.length / 2)]; ringOn(mid.p.map((x, k) => x + mid.n[k] * (W.thick * 0.5 + 0.002)), mid.n, W.ring * kh, body);
       }else if(look.body === 'vest' || look.body === 'raincoat'){
         /* a padded shell over the body from z0 to z1, open underneath between the legs; the raincoat is longer, smooth and glossy, with a hood rolled at the neck */
-        const coat = look.body === 'raincoat', z = coat ? W.coatZ : W.vestZ, pad = coat ? W.coatPad : W.pad, m = wearMat(coat ? 0.25 : 0.8), lift = gp + 0.003;
+        const coat = look.body === 'raincoat', z = coat ? W.coatZ : W.vestZ, pad = coat ? W.coatPad : W.pad, m = wearMat(coat ? 0.25 : 0.8), lift = gp + 0.003 + clothFur;
         addMesh(petShellGeo(T, bodyR, z[0] * bl, z[1] * bl, W.arc[0] * Math.PI, W.arc[1] * Math.PI, lift, pad, !coat), m, body);
         if(coat){ const h = toBody(cf.pts[3 * N / 4]); mesh(G.sph, m, body, h[0], h[1] + 0.008, h[2], 0.05 * kh, 0.02 * kh, 0.03 * kh); }
         else{ const s = surfAt(bodyR, 0.2 * bl, Math.PI / 2, lift + pad + 0.002); ringOn(s.p, s.n, W.ring * kh, body); }
       }else{
         /* a cape: from the neck's back half over the back and down both sides to the hip, with a gold clasp at the front of the neck */
         const top = []; for(let i = N / 2; i <= N; i++) top.push(toBody(cf.pts[i % N]));
-        addMesh(petCapeGeo(T, bodyR, top, gp + W.capeLift, W.capeEnd * bl, W.capeFlare, W.capeFold, W.capeSpan), wearMat(0.9), body);
+        addMesh(petCapeGeo(T, bodyR, top, gp + W.capeLift + clothFur, W.capeEnd * bl, W.capeFlare, W.capeFold, W.capeSpan), wearMat(0.9), body);
         const P = cf.pts[iF], n = unit3(cf.nrm[iF]); mesh(G.sph, mat('tag', 0.3), cn, P[0] + n[0] * 0.014, P[1] + n[1] * 0.014, P[2] + n[2] * 0.014, 0.011 * kh, 0.011 * kh, 0.011 * kh);
       }
     }

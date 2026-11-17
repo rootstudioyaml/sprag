@@ -160,7 +160,7 @@ test('officeSceneData hands a machine\'s pet to its person; people without one g
 test('office-scene wires pets: import query, data contract, drawn set, still life, rebuild and destroy, step, reduced motion, recording hooks', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p9'/);
+  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p10'/);
   assert.match(src, /people\[\]\.pet \(optional\)/, 'the data contract names the field');
   assert.match(src, /if\(d\.closed\) return new Set\(\);/, 'a closed organization shows no pets');
   assert.match(src, /filter\(p => p && p\.tier !== 'nodata' && p\.pet\)/, 'ghosts have no pets');
@@ -442,7 +442,7 @@ test('the body pieces: the harness, vest, raincoat and cape sit over the body el
   for(const kind of ['dog', 'cat']) for(const fluff of [0, 0.5, 1]) for(const build of [0, 0.5, 1]) for(const length of [0, 1]) for(const body of ['harness', 'vest', 'raincoat', 'cape']){
     const look = { kind, coat: ['#c89159'], fluff, build, length, body }, tag = JSON.stringify(look), g = P.makePet(T, look);
     const puff = 1 + 0.08 * fluff, sh = P.petShape(look), kb = sh.build, bl = (kind === 'cat' ? 0.165 : 0.175) * sh.length, bw = (kind === 'cat' ? 0.105 : 0.125) * kb;
-    const fur = fluff <= 0.05 ? 0 : P.petFurLen(fluff), R = [bw * puff + fur, 0.115 * kb * puff + fur, bl + fur];
+    const fur = (fluff <= 0.05 ? 0 : P.petFurLen(fluff)) * P.PET_WEAR_FUR, R = [bw * puff + fur, 0.115 * kb * puff + fur, bl + fur];   /* the pieces sit PET_WEAR_FUR of the fur's length over the skin */
     const pts = []; const walk = o => { o.children.forEach(c => { const at = c.geometry && c.geometry.attrs && c.geometry.attrs.position; if(at && o.name === 'body') for(let i = 0; i < at.array.length; i += 3) pts.push([at.array[i], at.array[i + 1], at.array[i + 2]]); walk(c); }); };
     walk(g); assert.ok(pts.length > 0, tag + ' draws on the body node');
     for(const p of pts){ assert.ok(p.every(Number.isFinite), tag); const q = Math.sqrt((p[0] / R[0]) ** 2 + (p[1] / R[1]) ** 2 + (p[2] / R[2]) ** 2); assert.ok(q >= 0.99, tag + ': never inside the body ' + q.toFixed(3)); assert.ok(q < 1.8, tag + ': close to the body, not in the air ' + q.toFixed(3)); }
@@ -509,8 +509,9 @@ test('petCollarFrame: the band hugs the crease over the fur on every build and f
   for(const cat of [false, true]) for(const f of [0, 0.5, 1]) for(const kb of [0.85, 1, 1.25]) for(const len of [0.85, 1.4]){
     const puff = 1 + 0.08 * f, kh = 1 + 0.5 * (kb - 1), furLen = P.petFurLen(f), hr = (cat ? 0.15 : 0.145) * puff * kh, bl = (cat ? 0.165 : 0.175) * len, bw = (cat ? 0.105 : 0.125) * kb;
     const s = { hr, cat, bl, bw, kb, puff, headFur: furLen * 0.8, bodyFur: furLen }, fr = P.petCollarFrame({}, s), tag = `cat ${cat} fluff ${f} build ${kb} length ${len}`;
-    const hc = [0, 0.1, 0.04], hR = [hr * (cat ? 1.1 : 1) + s.headFur, hr * (cat ? 0.93 : 1) + s.headFur, hr + s.headFur];
-    const bc = [0, -0.08, -bl * 0.72], bR = [bw * puff + s.bodyFur, 0.115 * kb * puff + s.bodyFur, bl + s.bodyFur];
+    const hf = s.headFur * P.PET_WEAR_FUR, bf = s.bodyFur * P.PET_WEAR_FUR;   /* the band sits PET_WEAR_FUR of the fur over the skin, down in the coat */
+    const hc = [0, 0.1, 0.04], hR = [hr * (cat ? 1.1 : 1) + hf, hr * (cat ? 0.93 : 1) + hf, hr + hf];
+    const bc = [0, -0.08, -bl * 0.72], bR = [bw * puff + bf, 0.115 * kb * puff + bf, bl + bf];
     const q = (p, o, R) => Math.sqrt(((p[0] - o[0]) / R[0]) ** 2 + ((p[1] - o[1]) / R[1]) ** 2 + ((p[2] - o[2]) / R[2]) ** 2);
     assert.equal(fr.pts.length, P.PET_COLLAR_N, tag);
     for(const p of fr.pts){

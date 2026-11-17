@@ -99,7 +99,7 @@ test('every shop string exists in both languages, Korean prose has no middle dot
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
   assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g5'/);
-  assert.match(SCENE, /from '\.\/pets\.js\?v=p9'/); assert.ok(!/pets\.js\?v=p[0-8]/.test(SCENE), 'every import of pets.js carries the same query');
+  assert.match(SCENE, /from '\.\/pets\.js\?v=p10'/); assert.ok(!/pets\.js\?v=p([0-9]|1[1-9])'/.test(SCENE), 'every import of pets.js carries the same query');
   assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
   assert.match(SCENE, /wantVariant\(hk === 'nose' \? 'crown' : hk/, 'a head gear in the season uses the nose-only sheet');
@@ -504,7 +504,7 @@ test('the scene follows the pets contract with fallbacks: legK in the gait, play
   assert.ok(!/PET_PLAY_Z \* gs/.test(SCENE), 'the toy is put down at the pet\'s own distance');
   assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
   assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
-  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p9';/, 'newer exports are read off the namespace, so an older pets.js still links');
+  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p10';/, 'newer exports are read off the namespace, so an older pets.js still links');
 });
 
 test('an untouched pet form never saves: after the pet is taken out the form shows the default dog, and Save stays off until a field changes', () => {
@@ -791,5 +791,5 @@ test('pet goods: cosmeticsOf keeps the new keys of a pet, and the demo, the priv
   assert.ok(PRIV.includes('눈과 코 색, 목걸이, 이름표, 모자, 날개, 하네스와 옷, 고른 장난감)') && !PRIV.includes('목줄') && !PRIV.includes('목 장식'), 'the Korean list');
   assert.ok(PRIV.includes('eye and nose colours, collar, tag, hat, wings, harness or clothes, chosen toy)'), 'the English list');
   for(const [name, src] of [['town-scene', TOWNSCENE], ['ops', OPS], ['team', TEAM], ['town', TOWN]]) assert.ok(!/3\.130\.0-[0-7]\b/.test(src), name + ' has no stale office-scene query');
-  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-8/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-8/);
+  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-9/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-9/);
 });
