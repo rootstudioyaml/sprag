@@ -33,8 +33,8 @@ function sandbox(t) {
   mkdirSync(join(home, '.claude'), { recursive: true });
   const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'ko',
     ...(process.platform === 'win32' ? { USERPROFILE: home } : {}) });
-  const run = (args, input) => execFileSync(process.execPath, [CLI, ...args], {
-    cwd: dir, env, encoding: 'utf8', input, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], timeout: 120_000 });
+  const run = (args, input, extraEnv) => execFileSync(process.execPath, [CLI, ...args], {
+    cwd: dir, env: extraEnv ? { ...env, ...extraEnv } : env, encoding: 'utf8', input, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], timeout: 120_000 });
   const call = (file, expr) => JSON.parse(execFileSync(process.execPath, [
     '--input-type=module', '-e',
     `import * as m from ${JSON.stringify(url(file))}; const r = await (async () => (${expr}))(); console.log(JSON.stringify(r));`,
@@ -102,8 +102,55 @@ test('delegationAgents:false and remove delete only marked files', (t) => {
 test("agent: 'codex' writes nothing", (t) => {
   const s = sandbox(t);
   const r = s.sync({ agent: 'codex' });
-  assert.deepEqual(r, { written: [], unchanged: [], skipped: [], removed: [] });
+  assert.deepEqual(r, { written: [], unchanged: [], skipped: [], removed: [], createdDir: false });
   assert.ok(!existsSync(s.agents));
+});
+
+test('sync reports createdDir only when it made the agents folder', (t) => {
+  const s = sandbox(t);
+  assert.equal(s.sync().createdDir, true, 'no folder before, files written');
+  assert.equal(s.sync().createdDir, false, 'second sync: folder exists, nothing written');
+  s.remove();
+  assert.equal(s.sync().createdDir, false, 'folder left behind by the removal still exists');
+  assert.equal(s.remove().createdDir, false);
+  assert.equal(s.sync({ agent: 'codex' }).createdDir, false);
+  const s2 = sandbox(t);
+  s2.setConfig({ delegationAgents: false });
+  assert.equal(s2.sync().createdDir, false, 'agents off: removal path');
+});
+
+const FIRST_NOTICE = /\[sprag agents\].*general-purpose/;
+
+test('CLI: first session start on an old or unknown Claude Code tells the model to use general-purpose', (t) => {
+  const s = sandbox(t);
+  const out = s.run(['route-scan', '--hook'], '{}', { AI_AGENT: 'claude-code_2-1-319_harness' });
+  assert.match(out, FIRST_NOTICE);
+  assert.ok(existsSync(s.agents));
+});
+
+test('CLI: 2.1.326 or later gets no first-install notice', (t) => {
+  const s = sandbox(t);
+  const out = s.run(['route-scan', '--hook'], '{}', { AI_AGENT: 'claude-code_2-1-326_harness' });
+  assert.doesNotMatch(out, /\[sprag agents\]/);
+  assert.deepEqual(present(s), NAMES, 'the agents are still installed');
+});
+
+test('CLI: an unknown version counts as old, and the notice appears once', (t) => {
+  const s = sandbox(t);
+  assert.match(s.run(['route-scan', '--hook'], '{}'), FIRST_NOTICE);
+  assert.doesNotMatch(s.run(['route-scan', '--hook'], '{}'), /\[sprag agents\]/, 'the folder exists now');
+});
+
+test('CLI: delegate agents on prints the version line only when it created the folder', (t) => {
+  const s = sandbox(t);
+  const old = s.run(['delegate', 'agents', 'on'], undefined, { AI_AGENT: 'claude-code_2-1-319_harness' });
+  assert.match(old, /2\.1\.326 이상이어야 합니다|only on 2\.1\.326 or later/);
+  s.run(['delegate', 'agents', 'off']);
+  const again = s.run(['delegate', 'agents', 'on'], undefined, { AI_AGENT: 'claude-code_2-1-330_harness' });
+  assert.doesNotMatch(again, /실행 중인 Claude Code 세션|Running Claude Code|running Claude Code session/, 'the folder survived the removal, so nothing was created');
+  const s2 = sandbox(t);
+  const fresh = s2.run(['delegate', 'agents', 'on'], undefined, { AI_AGENT: 'claude-code_2-1-330_harness' });
+  assert.match(fresh, /바로 쓸 수 있습니다\(Claude Code 2\.1\.330\)|right away \(Claude Code 2\.1\.330\)/);
 });
 
 test('agentPhrase for the sonnet tier follows the t1-worker file', (t) => {

@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
 import { loadConfig, saveConfig } from './config.js';
 import { agentDefinitions, cliVersion, presetSource } from './presets-source.js';
+import { AGENTS_LIVE_MIN_VERSION, agentsLoadMidSession, sessionClaudeVersion } from './claude-version.js';
 
 export const OWNER_MARK = 'sprag:delegation-agent';
 const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
@@ -100,16 +101,19 @@ export function removeDelegationAgents() {
       if (f && isOwned(f.text)) { unlinkSync(p); removed.push(name); }
     } catch { /* one file failing does not stop the rest */ }
   }
-  return { written: [], unchanged: [], skipped: [], removed };
+  return { written: [], unchanged: [], skipped: [], removed, createdDir: false };
 }
 
 export function syncDelegationAgents({ agent = 'claude' } = {}) {
-  const res = { written: [], unchanged: [], skipped: [], removed: [] };
+  const res = { written: [], unchanged: [], skipped: [], removed: [], createdDir: false };
   if (agent === 'codex') return res;
   try {
     if (loadConfig().delegationAgents === false) return removeDelegationAgents();
   } catch { /* an unreadable config means the default, on */ }
   const defs = definitions();
+  // Remembered before the loop: a Claude Code older than 2.1.326 does not see
+  // an agents folder that first appears mid-session (see claude-version.js).
+  const dirExisted = existsSync(agentsDir());
   for (const def of defs) {
     try {
       const p = fileOf(def.name);
@@ -134,7 +138,42 @@ export function syncDelegationAgents({ agent = 'claude' } = {}) {
       try { unlinkSync(fileOf(name)); res.removed.push(name); } catch { /* left for the next sync */ }
     }
   }
+  res.createdDir = !dirExisted && res.written.length > 0;
   return res;
+}
+
+/**
+ * Session-start notice for the first install of the agent files. Only a Claude
+ * Code older than AGENTS_LIVE_MIN_VERSION (or one whose version is unknown)
+ * needs it: it cannot find an agent created mid-session, so the model is told
+ * to delegate through general-purpose for this one session. Returns null when
+ * the folder was not just created or the running version finds the agents.
+ */
+export function firstInstallNotice(result, { lang = 'ko', env = process.env } = {}) {
+  if (!result || !result.createdDir || !Array.isArray(result.written) || result.written.length === 0) return null;
+  if (agentsLoadMidSession(sessionClaudeVersion(env)) === true) return null;
+  const names = result.written.join(', ');
+  const n = result.written.length;
+  return lang === 'ko'
+    ? `✇ [sprag agents] 이번 세션을 시작하면서 위임 전용 에이전트 ${n}개(${names})를 처음 설치했습니다. Claude Code ${AGENTS_LIVE_MIN_VERSION} 미만은 세션 도중 처음 생긴 에이전트를 찾지 못하므로 이 세션에서는 이 이름으로 위임하지 말고 general-purpose에 model 인자(haiku, sonnet, opus)를 넘기십시오. 다음 세션부터는 에이전트 이름으로 위임합니다.`
+    : `✇ [sprag agents] This session start installed ${n} delegation-only agent(s) for the first time (${names}). Claude Code before ${AGENTS_LIVE_MIN_VERSION} does not find an agent first created mid-session, so in this session do not delegate by these names: use general-purpose with a model argument (haiku, sonnet, opus). From the next session on, delegate by agent name.`;
+}
+
+/**
+ * The line `sprag install` and `delegate agents on` print after the first
+ * install of the agent files: whether a session already running can use them.
+ * One copy here so the two commands cannot drift apart.
+ */
+export function firstInstallCliLine({ lang = 'ko', env = process.env } = {}) {
+  const version = sessionClaudeVersion(env);
+  if (agentsLoadMidSession(version) === true) {
+    return lang === 'ko'
+      ? `  실행 중인 Claude Code 세션에서도 바로 쓸 수 있습니다(Claude Code ${version}).`
+      : `  Running Claude Code sessions can use them right away (Claude Code ${version}).`;
+  }
+  return lang === 'ko'
+    ? `  실행 중인 Claude Code 세션이 바로 찾으려면 ${AGENTS_LIVE_MIN_VERSION} 이상이어야 합니다. 그보다 오래된 버전은 새 세션부터 씁니다.`
+    : `  A running Claude Code session finds them right away only on ${AGENTS_LIVE_MIN_VERSION} or later; older versions pick them up from the next session.`;
 }
 
 export function delegationAgentStatus() {

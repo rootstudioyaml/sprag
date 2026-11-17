@@ -28,6 +28,7 @@
  * listed beside their legacy CTS_ names, which are still read as a fallback.
  */
 export const SCRUBBED = [
+  'AI_AGENT',
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'ANTHROPIC_BASE_URL',

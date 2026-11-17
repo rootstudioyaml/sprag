@@ -420,11 +420,13 @@ export async function run({ hasFlag }) {
     // Presets now live in ratchet-preset.md. Moving the ones older versions
     // appended to ratchet.md comes first, so they are not offered again below.
     try {
-      const d = (await import('../delegation-agents.js')).syncDelegationAgents();
+      const da = await import('../delegation-agents.js');
+      const d = da.syncDelegationAgents();
       if (d.written.length) {
         console.log(lang === 'ko'
           ? `  agents: 위임 전용 에이전트 ${d.written.length}개를 ~/.claude/agents 에 설치했습니다 (MCP 도구 없음).`
           : `  agents: installed ${d.written.length} delegation-only agent(s) in ~/.claude/agents (no MCP tools).`);
+        if (d.createdDir) console.log(da.firstInstallCliLine({ lang }));
       }
     } catch (e) {
       debug('install:delegation-agents', e);

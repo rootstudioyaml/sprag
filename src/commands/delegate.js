@@ -190,6 +190,7 @@ async function agentsCommand(action, lang) {
     const r = action === 'on' ? da.syncDelegationAgents() : da.removeDelegationAgents();
     await rerender();
     report(r);
+    if (r.createdDir) console.log(da.firstInstallCliLine({ lang: ko ? 'ko' : 'en' }));
     console.log(action === 'on'
       ? (ko ? '위임 전용 에이전트를 켰습니다. 래칫 문구가 에이전트 이름으로 다시 만들어졌습니다.' : 'Delegation agents are on. The ratchet wording was re-rendered with the agent names.')
       : (ko ? '위임 전용 에이전트를 껐습니다. 래칫 문구가 model 지정 방식으로 다시 만들어졌습니다.' : 'Delegation agents are off. The ratchet wording was re-rendered with plain model tiers.'));

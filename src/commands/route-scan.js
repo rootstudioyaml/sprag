@@ -327,7 +327,14 @@ export async function run({ args, hasFlag, numArg }) {
       // session start; this one uses whatever was already cached.
       try { (await import('../preset-sync.js')).spawnPresetSyncIfDue(); } catch (e) { debug('route-scan:preset-sync', e); }
       // Agent files come first so the ratchet-model.md rendered next names them.
-      try { (await import('../delegation-agents.js')).syncDelegationAgents(); } catch (e) { debug('route-scan:delegation-agents', e); }
+      let agentsFirstBlock = null;
+      let agentsSync = null;
+      let da = null;
+      try {
+        da = await import('../delegation-agents.js');
+        agentsSync = da.syncDelegationAgents();
+      } catch (e) { debug('route-scan:delegation-agents', e); }
+      try { if (da && agentsSync) agentsFirstBlock = da.firstInstallNotice(agentsSync, { lang }); } catch (e) { debug('route-scan:agents-first', e); }
       // The session's project is passed so its rule-less file follows the
       // routing switch as well (see syncAllFiles).
       try {
@@ -449,6 +456,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (updateBlock) console.log(updateBlock);
         if (monthlyResetBlock) console.log(monthlyResetBlock);
         if (driftBlock) console.log(driftBlock);
+        if (agentsFirstBlock) console.log(agentsFirstBlock);
         if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
@@ -460,6 +468,7 @@ export async function run({ args, hasFlag, numArg }) {
       if (updateBlock) console.log(updateBlock);
       if (monthlyResetBlock) console.log(monthlyResetBlock);
       if (driftBlock) console.log(driftBlock);
+      if (agentsFirstBlock) console.log(agentsFirstBlock);
       if (seedBlock) console.log(seedBlock);
       if (doc2mdBlock) console.log(doc2mdBlock);
       // This text is injected straight into the model's context, so it must
