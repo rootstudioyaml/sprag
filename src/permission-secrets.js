@@ -95,7 +95,7 @@ export function scanSettingsFile(path) {
 /** Run git without a shell. Returns the exit status, or null when git cannot answer (missing, timed out). */
 function gitStatus(args, cwd) {
   try {
-    execFileSync('git', args, { cwd, stdio: 'ignore', timeout: GIT_TIMEOUT_MS });
+    execFileSync('git', args, { cwd, stdio: 'ignore', timeout: GIT_TIMEOUT_MS, windowsHide: true });
     return 0;
   } catch (e) {
     return typeof e.status === 'number' ? e.status : null;

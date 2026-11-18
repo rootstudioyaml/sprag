@@ -89,7 +89,7 @@ export function koreanLocaleDetected({ env = process.env, platform = process.pla
       // locale is the only reliable signal there.
       const { execFileSync } = require('node:child_process');
       const out = execFileSync('defaults', ['read', '-g', 'AppleLocale'], {
-        encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true,
       }).trim();
       if (/^ko(_|-|$)/i.test(out)) return true;
     } catch { /* `defaults` missing or slow — treat as "not detected" */ }

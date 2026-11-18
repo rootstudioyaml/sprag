@@ -104,6 +104,7 @@ export function keyFromApiKeyHelper(cwd = process.cwd()) {
         timeout: HELPER_TIMEOUT_MS,
         stdio: ['ignore', 'pipe', 'ignore'],
         env: { ...process.env, APIKEY_HELPER_NONINTERACTIVE: '1' },
+        windowsHide: true,
       });
       // 진행 로그를 함께 출력하는 헬퍼가 있으므로 마지막 비어 있지 않은 줄을 취합니다.
       const token = out.trim().split(/\r?\n/).filter(Boolean).pop();

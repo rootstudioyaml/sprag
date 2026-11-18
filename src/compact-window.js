@@ -40,7 +40,7 @@ import { parseJsonText } from './json-text.js';
 export const MODEL_SETTINGS_MIN_VERSION = '2.1.288';
 
 /** Installed Claude Code version (`2.1.302`), or null when it cannot be read. */
-export function claudeCodeVersion({ run = () => execFileSync('claude', ['--version'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }) } = {}) {
+export function claudeCodeVersion({ run = () => execFileSync('claude', ['--version'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }) } = {}) {
   try {
     const m = String(run()).match(/(\d+\.\d+\.\d+)/);
     return m ? m[1] : null;

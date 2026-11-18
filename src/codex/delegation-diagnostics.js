@@ -18,7 +18,7 @@ export function codexDelegationDiagnostics({ home = codexUserDir(), model = code
       (profile?.features?.multi_agent ?? cfg.features?.multi_agent) === false;
   } catch (e) { if (e.code !== 'ENOENT') result.errors.push('Cannot parse user config.'); }
   const run = (args) => exec('codex', args, { encoding: 'utf8', timeout: 5000, maxBuffer: 20 * 1024 * 1024,
-    env: { ...process.env, CODEX_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'] });
+    env: { ...process.env, CODEX_HOME: home }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   try { result.version = run(['--version']).trim().slice(0, 100); } catch { result.errors.push('Codex version unavailable.'); }
   try {
     for (const line of run(['features', 'list']).split('\n')) {

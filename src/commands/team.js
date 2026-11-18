@@ -233,7 +233,7 @@ function openInBrowser(url) {
   const cmd = process.platform === 'darwin' ? 'open' : win ? 'cmd' : 'xdg-open';
   const args = win ? ['/c', 'start', '', url] : [url];
   try {
-    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true });
     child.on('error', () => {});
     child.unref();
   } catch { /* no opener on this machine */ }

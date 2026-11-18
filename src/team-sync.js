@@ -715,7 +715,7 @@ const DARWIN_TO_MACOS = { 20: '11', 21: '12', 22: '13', 23: '14', 24: '15', 25: 
 
 export function deviceInfo({
   platform = process.platform, release = osRelease(),
-  exec = (cmd, args) => execFileSync(cmd, args, { timeout: 2000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }),
+  exec = (cmd, args) => execFileSync(cmd, args, { timeout: 2000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }),
   readText = (f) => readFileSync(f, 'utf8'),
 } = {}) {
   let os = String(platform);

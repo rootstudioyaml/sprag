@@ -53,10 +53,10 @@ function metadata(version) {
 
 function tryGhCli(title, body) {
   try {
-    const auth = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8', timeout: 10_000 });
+    const auth = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8', timeout: 10_000, windowsHide: true });
     if (auth.status !== 0) return null;
     const res = spawnSync('gh', ['issue', 'create', '-R', REPO, '--title', title, '--body', body],
-      { encoding: 'utf8', timeout: 30_000 });
+      { encoding: 'utf8', timeout: 30_000, windowsHide: true });
     if (res.status !== 0) { debug('feedback:gh', res.stderr); return null; }
     const url = String(res.stdout).trim().split('\n').pop();
     return { transport: 'gh', url };

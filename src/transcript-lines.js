@@ -80,7 +80,7 @@ async function* zstdLines(filePath) {
 
 // Node before 22.15 has no zstd in zlib; the binary is the only way to read these files there.
 async function* zstdBinaryLines(filePath) {
-  const child = spawn('zstd', ['-dc', '--', filePath], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const child = spawn('zstd', ['-dc', '--', filePath], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
   // Registered before any await, so a very fast exit cannot slip past it.
   const closed = new Promise((resolve) => child.once('close', (code) => resolve(code)));
   // A missing binary reports through 'error', not through stdout, so settle that first.

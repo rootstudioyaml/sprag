@@ -30,7 +30,7 @@ export async function codexProviderKey(provider, { execute = run } = {}) {
   let key = provider.key;
   if (!key && typeof provider.command === 'string') {
     try {
-      const result = await execute(provider.command, provider.args, { encoding: 'utf8', timeout: 10000, maxBuffer: 64 * 1024 });
+      const result = await execute(provider.command, provider.args, { encoding: 'utf8', timeout: 10000, maxBuffer: 64 * 1024, windowsHide: true });
       key = result.stdout.trim().split(/\r?\n/).filter(Boolean).pop();
     } catch { throw new Error('Codex provider authentication helper failed'); }
   }

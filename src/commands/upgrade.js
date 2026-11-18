@@ -23,7 +23,7 @@ function runCommand(cmd) {
     // Shell form: the upgrade command is a fixed string we composed ourselves
     // (no user input reaches it), and `npm install -g` needs the user's PATH
     // resolution to find the same npm that installed us.
-    const child = spawn(cmd, { shell: true, stdio: 'inherit' });
+    const child = spawn(cmd, { shell: true, stdio: 'inherit', windowsHide: true });
     child.on('close', (code) => resolve(code === null ? 1 : code));
     child.on('error', () => resolve(1));
   });

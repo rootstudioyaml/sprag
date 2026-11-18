@@ -204,7 +204,7 @@ const isOwned = (file) => { try { return firstLine(file) === COWORK_MARKER; } ca
 // ---------- git exclude ----------
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], {
-  timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8',
+  timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', windowsHide: true,
 }).trim();
 
 function addGitExclude(dir) {

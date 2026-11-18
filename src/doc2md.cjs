@@ -478,6 +478,7 @@ function spawnFigConvert(fig2md, filePath) {
     encoding: 'utf8',
     timeout: CONVERT_TIMEOUT_MS,
     maxBuffer: MAX_MARKDOWN_BYTES * 4,
+    windowsHide: true,
   });
   if (run.error && run.error.code === 'ETIMEDOUT') return { ok: false, reason: 'timeout' };
   if (run.status !== 0) {
