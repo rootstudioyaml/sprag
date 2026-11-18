@@ -31,7 +31,11 @@ function sandbox(t) {
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   mkdirSync(join(home, '.claude'), { recursive: true });
+  // SPRAG_DETACHED_CHILD: `route-scan --hook` would start a detached rescan whose
+  // working directory is this sandbox, and Windows refuses to remove a directory a
+  // running process sits in (EBUSY in the after hook). No case here needs that child.
   const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'ko',
+    SPRAG_DETACHED_CHILD: '1',
     ...(process.platform === 'win32' ? { USERPROFILE: home } : {}) });
   const run = (args, input, extraEnv) => execFileSync(process.execPath, [CLI, ...args], {
     cwd: dir, env: extraEnv ? { ...env, ...extraEnv } : env, encoding: 'utf8', input, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], timeout: 120_000 });
