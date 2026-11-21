@@ -573,6 +573,48 @@ export function installSessionStartHook() {
   return { path: file, action: 'created' };
 }
 
+/**
+ * SessionStart hook for source "compact". The context warning sprag injects at
+ * 80% and 95% can reach the user after the compaction it warned about has run;
+ * this hook tells the model that the earlier warning is out of date.
+ *
+ * Its own group with matcher `compact`: the `startup|clear` group may hold hooks
+ * that are not ours, and widening its matcher would change when those run.
+ */
+const ROUTE_SCAN_COMPACT_HOOK_COMMAND = `${CLI} route-scan --hook-compact`;
+
+export function installCompactNoticeHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
+  if (settings.hooks.SessionStart !== undefined && !Array.isArray(settings.hooks.SessionStart)) {
+    return { path: file, action: 'skipped', reason: 'hooks.SessionStart is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.SessionStart) ? settings.hooks.SessionStart : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'route-scan', '--hook-compact')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'compact',
+    hooks: [{ type: 'command', command: ROUTE_SCAN_COMPACT_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.SessionStart = list;
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
+  return { path: file, action: 'created' };
+}
+
 // Registers the UserPromptSubmit hook that briefs mid-session state changes
 // (ctx tier crossings, new route candidates, rule-health flips) into the
 // conversation — the model cannot see statusline chips, so without this a
@@ -1474,6 +1516,7 @@ export function installAll({ force = false } = {}) {
     skill: installSkill({ force }),
     statusline: installStatusline({ force }),
     sessionStartHook: installSessionStartHook(),
+    compactNoticeHook: installCompactNoticeHook(),
     delegationHook: installDelegationHook(),
     delegationMeterMod: installDelegationMeterMod(),
     statuslineMod: installStatuslineMod(),

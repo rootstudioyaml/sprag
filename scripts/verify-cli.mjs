@@ -156,6 +156,17 @@ ok('doc2md off removes them', ['doc2md', 'off'], /hook|훅/i);
   const r = cts(['route-scan', '--hook-delegated'], { input: 'not json at all' });
   check('delegation hook survives a payload it cannot parse', r.code === 0, `exit=${r.code} out=${r.out.slice(0, 200)}`);
 }
+// The compaction notice hook runs when a session is compacted. With no
+// recorded context warning it prints nothing, and a payload it cannot parse must
+// not fail the session start.
+{
+  const r = cts(['route-scan', '--hook-compact'], { input: JSON.stringify({ source: 'compact', session_id: 'none' }) });
+  check('compaction notice hook says nothing without a recorded warning', r.code === 0 && r.out.trim() === '', `exit=${r.code} out=${r.out.slice(0, 200)}`);
+}
+{
+  const r = cts(['route-scan', '--hook-compact'], { input: 'not json at all' });
+  check('compaction notice hook survives a payload it cannot parse', r.code === 0, `exit=${r.code} out=${r.out.slice(0, 200)}`);
+}
 
 // --- install / uninstall ----------------------------------------------------
 ok('Codex help lists route discovery', ['--help', '--agent', 'codex'], /route-scan/);

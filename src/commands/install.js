@@ -85,6 +85,7 @@ export async function run({ hasFlag }) {
     const r = installAll({ force });
     print('skill', r.skill);
     print('SessionStart hook (route-scan)', r.sessionStartHook);
+    print('SessionStart hook (compaction notice)', r.compactNoticeHook);
     print('PostToolUse hook (delegation rescan)', r.delegationHook);
     print('mod (delegation meter, Claude Code 2.1.287+)', r.delegationMeterMod);
     if (r.delegationMeterMod.reason) console.log(`    ${r.delegationMeterMod.reason}`);

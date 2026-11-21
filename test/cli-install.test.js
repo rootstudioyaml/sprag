@@ -41,6 +41,7 @@ test('install completes on a machine with no prior state', () => {
     // as a prefix, so a bare substring test would pass with either one missing.
     assert.match(commands, /route-scan --hook(?![\w-])/, 'the SessionStart hook is registered');
     assert.match(commands, /route-scan --hook-delegated/, 'the delegation rescan hook is registered');
+    assert.match(commands, /route-scan --hook-compact(?![\w-])/, 'the compaction notice hook is registered');
     assert.match(commands, /brief --hook/);
     // The delegation hook must fire on the delegation tools and nothing else: a
     // wider matcher would rescan after every Read.
@@ -53,6 +54,26 @@ test('install completes on a machine with no prior state', () => {
     // either of these two.
     assert.match(commands, /route-scan --hook(?![\w-])/);
     assert.match(commands, /route-scan --hook-delegated(?![\w-])/);
+    assert.match(commands, /route-scan --hook-compact(?![\w-])/);
+    // None of the three is mistaken for another: each flag is registered once,
+    // and `--hook` does not match inside `--hook-compact` or `--hook-delegated`.
+    const flagCount = (event, re) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => re.test(h.command || '')).length;
+    assert.equal(flagCount('SessionStart', /route-scan --hook(?![\w-])/), 1);
+    assert.equal(flagCount('SessionStart', /route-scan --hook-compact(?![\w-])/), 1);
+    assert.equal(flagCount('PostToolUse', /route-scan --hook-delegated(?![\w-])/), 1);
+    assert.equal(flagCount('SessionStart', /route-scan --hook-delegated(?![\w-])/), 0);
+    // The compaction notice has its own group, and the startup|clear group
+    // keeps only the hook that was registered there before.
+    const compact = (settings.hooks.SessionStart || []).filter((m) =>
+      (m.hooks || []).some((h) => /route-scan --hook-compact(?![\w-])/.test(h.command || '')));
+    assert.equal(compact.length, 1);
+    assert.equal(compact[0].matcher, 'compact');
+    assert.equal(compact[0].hooks.length, 1);
+    const startup = (settings.hooks.SessionStart || []).find((m) => m.matcher === 'startup|clear');
+    assert.ok(startup, 'the startup|clear group is still registered');
+    assert.ok(!startup.hooks.some((h) => /--hook-compact/.test(h.command || '')));
   } finally {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
@@ -267,10 +288,14 @@ test('an existing legacy entry is recognised, not duplicated beside a new one', 
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const exactCount = (event, re) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => re.test(h.command || '')).length;
     const count = (event, needle) => (settings.hooks[event] || [])
       .flatMap((e) => e.hooks || [])
       .filter((h) => (h.command || '').includes(needle)).length;
-    assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the session-start hook stays single');
+    assert.equal(exactCount('SessionStart', /route-scan --hook$/), 1, 'the session-start hook stays single');
+    assert.equal(exactCount('SessionStart', /route-scan --hook-compact$/), 1, 'the compaction notice hook is added once');
     assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the brief hook stays single');
     // The user's own statusline entry is left as they have it, legacy name and all.
     assert.match(settings.statusLine.command, /claude-token-saver/);
@@ -345,10 +370,13 @@ test('install recognises an entry invoked through a wrapper, and adds no second 
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const exactCount = (event, re) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => re.test(h.command || '')).length;
     const count = (event, needle) => (settings.hooks[event] || [])
       .flatMap((e) => e.hooks || [])
       .filter((h) => (h.command || '').includes(needle)).length;
-    assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the wrapped session-start hook stays single');
+    assert.equal(exactCount('SessionStart', /route-scan --hook$/), 1, 'the wrapped session-start hook stays single');
     assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the wrapped brief hook stays single');
   } finally {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

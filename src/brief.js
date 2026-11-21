@@ -168,6 +168,12 @@ function ctxTierOf(pct) {
   return t;
 }
 
+export const BRIEF_HEADER = '✇ [sprag 브리핑] 아래 상태 변화를 사용자에게 알려주세요. 진행 중인 답변 흐름을 끊지 말고, 답변 말미에 `✇ [sprag]` 라벨을 달아 각 항목을 1~2줄로 요약해 전달하면 됩니다 (이 브리핑은 항목당 한 번만 주입됩니다):';
+export const URGENT_BRIEF_HEADER = '✇ [sprag 브리핑, 지금 전달] 아래 항목은 시간이 지나면 틀린 정보가 됩니다. 이번 답변의 첫 줄에 `✇ [sprag]` 라벨을 달아 한 줄로 전하고 그다음에 작업을 이어가십시오. 도구 호출이 끝날 때까지 미루지 마십시오. 대화 앞부분이 이미 요약으로 바뀌었다면 압축이 끝난 것이니 이 항목은 전하지 마십시오:';
+
+const COMPACTION_NOTICE_KO = '✇ [sprag] 방금 이 세션의 대화가 압축됐습니다. 압축 전에 받은 컨텍스트 경고(컨텍스트가 창의 80%나 95%를 넘었다는 sprag 브리핑)는 이제 지난 정보입니다. 아직 사용자에게 전하지 않았다면 전하지 마십시오. 대신 이번 답변 끝에 `✇ [sprag]` 라벨로 압축이 돌아 컨텍스트가 줄었다는 것만 한 줄로 알리십시오.';
+const COMPACTION_NOTICE_EN = "✇ [sprag] This session's conversation was just compacted. Any context warning received before that (a sprag briefing that the context passed 80% or 95% of the window) is now out of date: if you have not relayed it to the user yet, do not. Instead add one line at the end of this reply, under a `✇ [sprag]` label, saying that compaction ran and the context is smaller now.";
+
 const fmtK = (n) => `${Math.round(n / 1000)}k`;
 
 // A session left open for days re-reads everything it ever loaded on every
@@ -244,6 +250,7 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
   const state = loadState();
   const s = state.sessions[sessionId] || { ctxTier: 0, briefed: [] };
   const items = [];
+  const urgent = [];
 
   // ── context tier crossing (per-session) ──
   const ctx = transcriptPath ? sessionCtx(transcriptPath, { root, liveWindow }) : null;
@@ -266,13 +273,18 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
       // With autoCompactWindow set, crossing the threshold means compaction is
       // about to run on its own. Telling the user to start a new session there
       // would be advice for a problem the setting already handles.
-      items.push(tier === 2
-        ? (ctx.compactCapped
-            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 곧 자동 압축이 돌아 이전 대화가 요약으로 바뀝니다 — 지금 단계를 마무리하고 이어서 할 일은 파일에 적어두면 압축 뒤에도 안전합니다.`
-            : `이 세션의 컨텍스트가 ${winLabel} 창의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`)
-        : (ctx.compactCapped
-            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 설정해 둔 압축 지점이 가까워졌습니다 — 압축은 알아서 돌아가니 새 세션을 서두를 필요는 없고, 여기까지의 결정과 다음 할 일만 파일에 남겨두면 됩니다.`
-            : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`));
+      // The 95% item goes into its own block that tells the model to relay it
+      // first: in a turn with many tool calls, compaction can run before the
+      // answer ends, and an item delivered at the end would then be false.
+      const cap = ctx.compactCapped;
+      const item = tier === 2
+        ? (cap
+            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 이 답변이 끝나기 전에 자동 압축이 돌 수 있습니다. 이어서 할 일을 지금 파일에 적어 두면 압축 뒤에도 안전합니다.`
+            : `이 세션의 컨텍스트가 ${winLabel} 창의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이 답변이 끝나기 전에 자동 압축이 돌 수 있고 그때 앞부분 맥락이 요약으로 줄어듭니다. 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`)
+        : (cap
+            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 설정해 둔 압축 지점이 가까워졌습니다. 압축은 알아서 돌아가니 새 세션을 서두를 필요는 없습니다. 여기까지의 결정과 다음 할 일만 파일에 남겨 두면 됩니다.`
+            : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다. 작업이 일단락되면 새 세션 시작을 권합니다.`);
+      (tier === 2 ? urgent : items).push(item);
       s.ctxTier = tier;
     }
   }
@@ -346,10 +358,25 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
   state.sessions[sessionId] = s;
   saveState(state, now);
 
-  if (items.length === 0) return null;
-  const lines = [
-    '✇ [sprag 브리핑] 아래 상태 변화를 사용자에게 알려주세요. 진행 중인 답변 흐름을 끊지 말고, 답변 말미에 `✇ [sprag]` 라벨을 달아 각 항목을 1~2줄로 요약해 전달하면 됩니다 (이 브리핑은 항목당 한 번만 주입됩니다):',
-  ];
-  for (const it of items) lines.push(`- ${it}`);
-  return lines.join('\n');
+  if (items.length === 0 && urgent.length === 0) return null;
+  const blocks = [];
+  if (urgent.length > 0) blocks.push([URGENT_BRIEF_HEADER, ...urgent.map((it) => `- ${it}`)].join('\n'));
+  if (items.length > 0) blocks.push([BRIEF_HEADER, ...items.map((it) => `- ${it}`)].join('\n'));
+  return blocks.join('\n\n');
+}
+
+/**
+ * Text for the SessionStart hook that runs after a compaction, or null when no
+ * context warning was injected in this fill cycle (ctxTier >= 1).
+ *
+ * Read-only on purpose. Right after a compaction the transcript's last recorded
+ * usage can still be the pre-compaction one, so resetting the tier here would
+ * make the next prompt fire the 95% warning again. The lazy drop in runBrief
+ * lowers the tier once a smaller reading arrives.
+ */
+export function compactionNotice({ sessionId, lang } = {}) {
+  if (!sessionId) return null;
+  const s = loadState().sessions[sessionId];
+  if (!s || !((s.ctxTier || 0) >= 1)) return null;
+  return lang === 'ko' ? COMPACTION_NOTICE_KO : COMPACTION_NOTICE_EN;
 }

@@ -303,6 +303,22 @@ export async function run({ args, hasFlag, numArg }) {
       return;
     }
 
+    // --hook-compact: SessionStart hook for source "compact". Tells the model
+    // that a context warning it received before the compaction is out of date.
+    // Read-only and instant: no scan, no cache read, no child process.
+    if (hasFlag('--hook-compact')) {
+      try {
+        const payload = readStdinJson() || {};
+        if (payload.source !== undefined && payload.source !== 'compact') return;
+        const { compactionNotice } = await import('../brief.js');
+        const text = compactionNotice({ sessionId: payload.session_id, lang });
+        if (text) console.log(text);
+      } catch (e) {
+        debug('route-scan:compact-notice', e);
+      }
+      return;
+    }
+
     // --hook: SessionStart hook mode. Never scans inline (session start must
     // stay fast) — reads the cache, kicks a detached refresh when stale, and
     // prints delegation-candidate context for the new session.
