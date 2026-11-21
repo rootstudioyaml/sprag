@@ -804,7 +804,7 @@
 <script src="/assets/admin-ux.js?v=3.131.0"></script>
 <script src="/assets/admin-mfa.js?v=3.131.0"></script>
 <script src="/assets/sign-in-captcha.js?v=3.131.0"></script>
-<script src="/assets/scene/office-i18n.js?v=3.131.0"></script>
+<script src="/assets/scene/office-i18n.js?v=3.131.0-1"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -882,7 +882,7 @@ const I18N = {
     "sr.c.signal":"Signal",
     "sr.c.upload":"Last upload",
     "sr.tip.ok":"Uploads are on and data arrived in the last 48 hours.",
-    "sr.tip.late":"Uploads allowed but nothing arrived for 48h+; the machine may be offline or the Claude Code sessions are not running.",
+    "sr.tip.late":"Uploads allowed but nothing arrived for 48h+; the machine may be offline or the Claude Code sessions are not running. The member keeps their rank on this month's data.",
     "sr.tip.paused":"The member turned uploads off with SPRAG_NO_TEAM_SYNC=1. The seat stays counted.",
     "sr.tip.silent":"Uploads are on, but the machine has not contacted Sprag for 30+ days. It no longer holds a seat.",
     "sr.tip.left":"The member left the team on their own.",
@@ -1002,7 +1002,7 @@ const I18N = {
     "sr.c.signal":"신호",
     "sr.c.upload":"마지막 업로드",
     "sr.tip.ok":"업로드가 켜져 있고 최근 48시간 안에 데이터가 도착했습니다.",
-    "sr.tip.late":"업로드는 허용돼 있지만 48시간 넘게 도착한 데이터가 없습니다. PC가 꺼져 있거나 Claude Code 세션이 실행되지 않을 수 있습니다.",
+    "sr.tip.late":"업로드는 허용돼 있지만 48시간 넘게 도착한 데이터가 없습니다. PC가 꺼져 있거나 Claude Code 세션이 실행되지 않을 수 있습니다. 이번 달 데이터로 순위는 유지됩니다.",
     "sr.tip.paused":"멤버가 SPRAG_NO_TEAM_SYNC=1 로 업로드를 껐습니다. 좌석은 계속 차지합니다.",
     "sr.tip.silent":"업로드는 켜져 있지만 30일 넘게 Sprag에 접속하지 않았습니다. 더 이상 좌석을 차지하지 않습니다.",
     "sr.tip.left":"멤버가 스스로 팀에서 나갔습니다.",
@@ -2957,7 +2957,7 @@ const SceneHost = (function(){
       const [u, pr, cm] = await Promise.all([fetchUsage(ids), fetchPrompts(), fetchCosmetics()]); if(my !== seq) return;
       usage = u; promptRows = pr; cosmetics = cm; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.131.0'); }catch(e){ return fail(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.131.0-1'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel, events: Seats.events(), cosmetics,
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== org.id){ ctl.destroy(); ctl = null; }

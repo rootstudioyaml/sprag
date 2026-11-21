@@ -3512,7 +3512,8 @@ export function workShareOf(dc, saved, base, since){
  *   The tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
  *   With fewer than SMALL_TEAM.n ranked people the score percentile is squeezed into [0.3, 0.7] (squeezeSr), so only the normal and active tiers are reachable and only an idle person is low;
  *   the ranking, the score and the crown stay as they are, and the full ladder opens at SMALL_TEAM.n people. Grading and the drawer's company median are one value: median() of the known delegation shares.
- * No data: a person without a machine in signal ok (paused, late, silent) is 'nodata' and stays out of the ranking. */
+ * Ranked: an unsuspended organization ranks every person with a machine in signal ok or late, so a quiet weekend keeps the animal while the month's data stands (the server's _office_standings is the same rule).
+ * No data: a person whose machines are all paused or silent is 'nodata' and stays out of the ranking. */
 export function officeSceneData(o){
   const money = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
   const t = o.t, usage = o.usage || {}, pr = Array.isArray(o.promptRows) ? o.promptRows : null, closed = !!o.closed;
@@ -3557,7 +3558,7 @@ export function officeSceneData(o){
     let dcostSince = null, savedSince = 0; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; savedSince += Number(u.saved) || 0; });
     const hasSince = rs.some(r => { const u0 = usage[r.member_id]; return !!(u0 && u0.since && Array.isArray(u0.series)); });
     return { id: key, host, rs, spent, spentSince, dcostSince, savedSince, hasSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
-      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spentSince + savedSince > 0 ? savedSince / (spentSince + savedSince) : 0 };
+      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok' || r.signal === 'late'), dlg: spentSince + savedSince > 0 ? savedSince / (spentSince + savedSince) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;

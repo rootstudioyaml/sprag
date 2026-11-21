@@ -232,6 +232,41 @@ test('the drawer prints no em dash placeholder', () => {
 
 /* The delegation axis counts savings over spend plus savings from the day each machine joined (sprag-team 20261116000400, _office_standings),
    while the spend axis keeps the whole period. Same numbers as standing_smoke.sql (b18..b21) in sprag-team, so the console and the server agree. */
+/* 20261121000100 (sprag-team): a person is ranked when the organization is open and one machine is ok or late; only paused-only and silent-only people are ghosts */
+test('late stays ranked: a late machine keeps the species, the rank, the bots and the cosmetics; paused-only and silent-only people are ghosts', () => {
+  const sigs = { L: ['late'], M: ['late', 'paused'], N: ['ok'], P: ['paused'], S: ['silent'], Q: ['paused', 'silent'] };
+  const run = closed => {
+    const rows = [], usage = {}, cosmetics = []; let i = 0;
+    for(const [k, ss] of Object.entries(sigs)){
+      i++; cosmetics.push({ member_id: k + '0', lvl: 2, gear: {}, pet: null });
+      ss.forEach((sg, j) => {
+        const id = k + j;
+        rows.push({ member_id: id, display_name: k, team_id: 't1', team_name: 'T', signal: sg, seat_of: j ? k + '0' : null, last_upload_at: '2026-11-18T00:00:00Z' });
+        usage[id] = { spent: 10 * i, saved: 5 * i, delegated: 3 * i, delegated_cost: 2 * i };
+      });
+    }
+    const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
+    return byId(officeSceneData({ rows, usage, cosmetics, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 6, limit: 30, orgName: 'O', rangeLabel: '30d', closed, t: tt, rel: x => x, os: () => '' }));
+  };
+  const d = run(false);
+  for(const k of ['L0', 'M0', 'N0']){
+    const p = d[k];
+    assert.notEqual(p.grade, 'ghost', k); assert.notEqual(p.tier, 'nodata', k);
+    assert.ok(GRADES[gradeIndex(p.grade)], k); assert.equal(p.tier, GRADES[gradeIndex(p.grade)].tier, k);
+    assert.ok(p.rank >= 1 && p.rank <= 3, k + ' rank ' + p.rank);
+    assert.ok(p.bots.length > 0, k + ' bots'); assert.equal(p.tag, '', k); assert.equal(p.lvl, 2, k + ' cosmetics');
+    assert.ok(p.detail.next.length > 0, k + ' drawer standings');
+  }
+  assert.deepEqual(['L0', 'M0', 'N0'].map(k => d[k].rank).sort(), [1, 2, 3]);
+  for(const k of ['P0', 'S0', 'Q0']){
+    const p = d[k];
+    assert.equal(p.grade, 'ghost', k); assert.equal(p.tier, 'nodata', k); assert.equal(p.rank, 0, k); assert.deepEqual(p.bots, [], k); assert.equal(p.lvl, 0, k);
+  }
+  assert.equal(d.P0.tag, 'of.tag.off'); assert.equal(d.Q0.tag, 'of.tag.off'); assert.equal(d.S0.tag, 'of.tag.late');
+  /* a suspended organization ranks nobody, late or not */
+  for(const p of Object.values(run(true))){ assert.equal(p.grade, 'ghost', p.id); assert.equal(p.tier, 'nodata', p.id); assert.equal(p.rank, 0, p.id); }
+});
+
 test('delegation share: savings since the install, not the delegated cost, and spend keeps the pre-install days (server parity)', () => {
   const day = (d, total, saved, dc = null) => ({ day: d, spent: total, total, saved, delegated_cost: dc });
   const row = id => ({ member_id: id, display_name: id, team_id: 't1', team_name: 'T', signal: 'ok' });

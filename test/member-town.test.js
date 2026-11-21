@@ -33,7 +33,7 @@ function town(extra = {}){
     { id: 'a', name: 'Mina', os: 'darwin', team_id: 't1', team_name: 'Apps', grade: 'fox', tier: 'active', crown: false, state: 'ok', self: true },
     { id: 'b', name: 'Jun', os: 'win32', team_id: 't1', team_name: 'Apps', grade: 'dragon', tier: 'power', crown: true, state: 'ok', self: false },
     { id: 'c', name: 'Sora', os: 'linux', team_id: 't2', team_name: 'Data', grade: 'bear', tier: 'normal', crown: false, state: 'ok', self: false },
-    { id: 'd', name: 'Hana', os: null, team_id: 't2', team_name: 'Data', grade: 'ghost', tier: 'nodata', crown: false, state: 'late', self: false },
+    { id: 'd', name: 'Hana', os: null, team_id: 't2', team_name: 'Data', grade: 'ghost', tier: 'nodata', crown: false, state: 'paused', self: false },
     { id: 'e', name: 'Doyun', os: 'darwin', team_id: 't2', team_name: 'Data', grade: 'chick', tier: 'low', crown: false, state: 'paused', self: false },
   ];
   return {
@@ -96,7 +96,10 @@ test('other people are characters only: no figure of any kind', () => {
 
 test('a ghost and a paused person show their state, a person with data does not hint at a figure', () => {
   const d = run(town()), by = id => d.people.find(p => p.id === id);
-  assert.match(by('d').tag, /Late/);
+  assert.match(by('d').tag, /Uploads off/);
+  /* a late machine keeps its rank now (20261121000100), so a ghost that reads state late is a silent one: no contact for 30 days (the server folds silent into late for display) */
+  const silent = run(town({ people: town().people.map(p => (p.id === 'd' ? { ...p, state: 'late' } : p)) }));
+  assert.match(silent.people.find(p => p.id === 'd').tag, /Late/);
   assert.match(by('e').tip[1][1], /Paused/);
   assert.match(by('b').tip[1][1], /OK/);
   assert.equal(by('b').tag, '');

@@ -791,5 +791,5 @@ test('pet goods: cosmeticsOf keeps the new keys of a pet, and the demo, the priv
   assert.ok(PRIV.includes('눈과 코 색, 목걸이, 이름표, 모자, 날개, 하네스와 옷, 고른 장난감)') && !PRIV.includes('목줄') && !PRIV.includes('목 장식'), 'the Korean list');
   assert.ok(PRIV.includes('eye and nose colours, collar, tag, hat, wings, harness or clothes, chosen toy)'), 'the English list');
   for(const [name, src] of [['town-scene', TOWNSCENE], ['ops', OPS], ['team', TEAM], ['town', TOWN]]) assert.ok(!/3\.130\.0-[0-7]\b/.test(src), name + ' has no stale office-scene query');
-  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-9/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-9/);
+  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.131\.0-1/); assert.match(TOWN, /office-i18n\.js\?v=3\.131\.0-1/);
 });

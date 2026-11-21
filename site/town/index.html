@@ -104,7 +104,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.131.0"></script>
+<script src="/assets/scene/office-i18n.js?v=3.131.0-1"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -375,7 +375,7 @@ function demoTown(){
     P(4, 'mia-pro', 'Windows', 'chick', 'low', 0, null, null),
     P(5, 'pat-thinkpad', 'Linux', 'wolf', 'power', 6, { head: 'aurora', back: 'phoenix', desk: 'neon' }, null),
     P(6, 'kim-studio', 'macOS', 'panda', 'normal', 2, { head: 'flower', desk: 'snowglobe' }, null),
-    P(7, 'qa-mac', 'macOS', 'ghost', 'nodata', 0, null, null, { state: 'late' }),
+    P(7, 'qa-mac', 'macOS', 'ghost', 'nodata', 0, null, null, { state: 'paused' }),
     P(8, 'rina-air', 'macOS', 'rabbit', 'active', 3, { head: 'party', desk: 'trophy' }, null),
   ];
   const DAY = ymd(2), m = (id, name, extra) => ({ member_id: id, display_name: name, os: 'macOS', os_version: '26.1', arch: 'arm64', sprag_version: '3.126.0', signal: 'ok', switch: 'on', last_upload_at: iso(0.05), last_seen: iso(0.02), sync_state_at: null, ...extra });
@@ -440,7 +440,7 @@ if(DEMO) window.__spragDemoLog = demoLog;
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.131.0'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.131.0-1'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
