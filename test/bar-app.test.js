@@ -240,7 +240,8 @@ test('buildBar takes the lock, compiles to a temp file, renames it, records the 
   assert.equal(call.opts.stdio, 'pipe');
   assert.equal(call.opts.windowsHide, true);
   assert.equal(readFileSync(paths.binary, 'utf8'), 'binary');
-  assert.equal(statSync(paths.binary).mode & 0o777, 0o755);
+  // Windows has no execute bit: chmod there only toggles read-only, so the mode check is for the systems the app runs on.
+  if (process.platform !== 'win32') assert.equal(statSync(paths.binary).mode & 0o777, 0o755);
   assert.deepEqual(readdirSync(join(paths.dir, VERSION)), ['sprag-bar'], 'no temp file is left');
   const state = JSON.parse(readFileSync(paths.buildState, 'utf8'));
   assert.deepEqual(state, { version: VERSION, ok: true, at: state.at, ms: r.ms, error: null });
@@ -655,6 +656,11 @@ test('a bar call with no subcommand still prints the snapshot', async () => {
 
 // session start
 
+// The cases below let the hook reach ensureBar, so they cannot use SPRAG_DETACHED_CHILD to keep detached children out of
+// the sandbox the way other hook tests do: ensureBar stands down for a detached child. The detached child a session
+// start has here is the rescan it starts when there is no recent route-scan cache. That child writes the cache after the
+// test is over, and the removal of the sandbox then fails (ENOTEMPTY on Linux, EBUSY on Windows). A cache stamped now
+// makes the hook skip the rescan.
 function hookSandbox(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-bar-hook-'));
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
@@ -662,6 +668,7 @@ function hookSandbox(t) {
   const empty = join(dir, 'empty-path');
   mkdirSync(join(home, '.claude'), { recursive: true });
   mkdirSync(join(dir, 'claude-token-saver'), { recursive: true });
+  writeFileSync(join(dir, 'claude-token-saver', 'route-scan.json'), JSON.stringify({ scannedAt: new Date().toISOString() }));
   mkdirSync(empty);
   return { dir, home, empty, data: join(dir, 'claude-token-saver') };
 }
