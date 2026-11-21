@@ -168,7 +168,7 @@ const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'proof', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
   'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing', 'secrets',
-  'panel',
+  'panel', 'bar',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -196,6 +196,7 @@ const FLAG_SPECS = {
     value: ['--project', '--session', '--interval'],
     bool: ['--once', '--no-color', '--icon', '--verbose', '--single-line', '--help', '-h'],
   },
+  bar: { value: [], bool: ['--json', '--swiftbar', '--plugin', '--settings', '--rules', '--detail', '--then-launch', '--help', '-h'] },
 };
 
 /** Which spec applies to this invocation, or null for a subcommand that parses its own arguments. */
@@ -290,6 +291,9 @@ Usage:
   sprag --uninstall-hook   remove that hook
   sprag panel              live statusline in a terminal pane, for hosts that do not draw it (T3 Code, Agent SDK)
       --once / --interval <sec> / --project <dir> / --session <id> / --no-color
+  sprag bar                what each running agent session is doing, with its model, context, cost, CPU, memory and account limits
+      --json / --swiftbar (SwiftBar or xbar menu bar text) / --plugin (print the plugin script) / --settings (routing, statusline and team name settings as JSON) / --rules (every ratchet, preset, model and team rule as JSON) / --detail (with --json: each session's request, last reply, recent tool calls and child processes)
+      on|off|status|build [--then-launch]   the macOS menu bar app: compiled from its source once (again only when a release changes it) and started when a session starts
   sprag --statusline       one-line output for Claude Code statusline
       --verbose / --no-color / --icon / --no-timer / --single-line
       --columns N   fit lines to N cells (default: $COLUMNS, which Claude Code sets, else 120)
@@ -352,6 +356,12 @@ async function main() {
   // command (T3 Code and other Agent SDK hosts). The Codex panel is handled above.
   if (args[0] === 'panel') {
     return (await import('../src/commands/panel.js')).run({ getArg, hasFlag });
+  }
+
+  // Subcommand: bar — one-shot snapshot of what each running Claude Code and
+  // Codex session is doing, with CPU and memory (text, JSON or SwiftBar/xbar).
+  if (args[0] === 'bar') {
+    return (await import('../src/commands/bar.js')).run({ args, hasFlag });
   }
 
   // Subcommand: last — print the most recent warning + how to handle it.

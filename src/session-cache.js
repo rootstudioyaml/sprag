@@ -156,6 +156,25 @@ export function putCached(cache, file, session) {
 }
 
 /**
+ * The last summary stored for a transcript path, whatever the file looks like
+ * now. It skips the (mtimeMs, size) check that getCached does, so it can be a
+ * few seconds behind a transcript that is still growing: that is fine for a
+ * display, and it must never feed an aggregate.
+ *
+ * @returns {SessionSummary|null} null when the path has no entry
+ */
+export function peekCached(cache, path, projectDir = '') {
+  const e = cache?.entries?.[path];
+  if (!e || !e.s) return null;
+  try {
+    return deserialize(e.s, path, projectDir);
+  } catch (err) {
+    debug('session-cache:peek', err);
+    return null;
+  }
+}
+
+/**
  * A session re-aggregated from a fixed point in time (the start of the month),
  * stored beside the full summary of the same file. One slot per entry: the
  * point moves once a month, and an entry whose file changed is replaced whole

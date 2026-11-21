@@ -32,9 +32,9 @@ export function ctxWindowCachePath() {
   return join(userDataDir(), 'ctx-window.json');
 }
 
-function load() {
+function load(path = ctxWindowCachePath()) {
   try {
-    const s = JSON.parse(readFileSync(ctxWindowCachePath(), 'utf8'));
+    const s = JSON.parse(readFileSync(path, 'utf8'));
     return s && s.sessions && typeof s.sessions === 'object' && !Array.isArray(s.sessions) ? s : { sessions: {} };
   } catch {
     return { sessions: {} };
@@ -58,10 +58,13 @@ export function recordLiveWindow(sessionId, size, now = Date.now(), model = null
   return true;
 }
 
-/** The recorded window for a session, or null when the statusline never reported one. */
-export function liveWindowFor(sessionId) {
+/**
+ * The recorded window for a session, or null when the statusline never reported one.
+ * `file` reads another copy of the state file (`sprag bar` passes its own data folder's).
+ */
+export function liveWindowFor(sessionId, file = ctxWindowCachePath()) {
   if (typeof sessionId !== 'string' || sessionId === '') return null;
-  const s = load().sessions[sessionId];
+  const s = load(file).sessions[sessionId];
   return s && validSize(s.size) ? s.size : null;
 }
 
@@ -98,10 +101,10 @@ export function liveWindowsByModel() {
     .map((s) => ({ model: s.model, size: s.size, ts: s.ts }));
 }
 
-/** The model id a session's statusline payload reported, or null. */
-export function liveModelFor(sessionId) {
+/** The model id a session's statusline payload reported, or null. `file` is as in liveWindowFor. */
+export function liveModelFor(sessionId, file = ctxWindowCachePath()) {
   if (typeof sessionId !== 'string' || sessionId === '') return null;
-  const s = load().sessions[sessionId];
+  const s = load(file).sessions[sessionId];
   return s && typeof s.model === 'string' && s.model !== '' ? s.model : null;
 }
 

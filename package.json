@@ -36,6 +36,7 @@
     "mod/*/hooks/**",
     "mod/*/types/**",
     "presets/",
+    "mac/SpragBar.swift",
     "examples/",
     "README.md",
     "README.ko.md",

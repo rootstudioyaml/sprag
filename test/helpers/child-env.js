@@ -57,6 +57,7 @@ export const SCRUBBED = [
   'CTS_DOC2MD_PYTHON',
   'CTS_DOC2MD_ROW_CAP',
   'CTS_LANG',
+  'CTS_NO_BAR',
   'CTS_NO_CODEX',
   'CTS_NO_DELEGATE',
   'CTS_NO_DIAG',
@@ -105,6 +106,7 @@ export const SCRUBBED = [
   'SPRAG_EVALS_WORK', 'SPRAG_EVALS_WT',
   'SPRAG_ICON',
   'SPRAG_LANG',
+  'SPRAG_NO_BAR',
   'SPRAG_NO_CODEX',
   'SPRAG_NO_DELEGATE',
   'SPRAG_NO_DIAG',
@@ -191,6 +193,10 @@ export function childEnv(overrides = {}) {
      transcripts would write sidecars into the real data directory. A case
      about the store passes `undefined`. */
   env.SPRAG_NO_REQUEST_STORE = '1';
+  /* The SessionStart hook compiles and starts the macOS menu bar app, which on
+     a Mac with the command line tools is a real detached compile and a real
+     window. A case about that passes `undefined`. */
+  env.SPRAG_NO_BAR = '1';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;

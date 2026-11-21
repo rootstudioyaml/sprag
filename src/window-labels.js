@@ -78,3 +78,14 @@ export function labelForKey(key) {
   const short = deriveShort(key);
   return { short, long: deriveLong(key), icon: '⏱', narrowIcon: '◕', usageLabel: short };
 }
+
+/**
+ * Label for a Codex rate-limit window from its length in minutes: 300 is `5H`,
+ * 10080 is `7D`, 90 is `90m`. Without a usable length it falls back to `fallback`.
+ */
+export function windowLabel(minutes, fallback) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return fallback;
+  if (minutes % 1440 === 0) return `${minutes / 1440}D`;
+  if (minutes % 60 === 0) return `${minutes / 60}H`;
+  return `${minutes}m`;
+}

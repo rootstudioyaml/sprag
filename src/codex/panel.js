@@ -12,7 +12,7 @@ import { gaugeBar, formatMoney, DEFAULT_SEGMENT_ORDER } from '../formatters/stat
 import { codexCacheTimer } from './cache.js';
 import { readCodexCachePolicy, readCodexPrices, isDirectOpenAI } from './cache-policy.js';
 import { codexIssues } from './brief.js';
-import { labelForKey } from '../window-labels.js';
+import { labelForKey, windowLabel } from '../window-labels.js';
 import { resolveLabelMode } from '../statusline-mode.js';
 import { formatResetIn } from '../format-time.js';
 import { codexDocumentTotals } from './doc2md-ledger.js';
@@ -191,12 +191,6 @@ function age(date, now) {
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   return `${Math.floor(seconds / 3600)}h ago`;
-}
-function windowLabel(minutes, fallback) {
-  if (!Number.isFinite(minutes) || minutes <= 0) return fallback;
-  if (minutes % 1440 === 0) return `${minutes / 1440}D`;
-  if (minutes % 60 === 0) return `${minutes / 60}H`;
-  return `${minutes}m`;
 }
 
 export function effortLabel(value) {

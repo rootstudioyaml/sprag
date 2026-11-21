@@ -117,6 +117,23 @@ export function readLastRender({ dir = userDataDir(), key = 'default' } = {}) {
   }
 }
 
+/**
+ * Epoch ms of the newest statusline render of any session, or null. A render
+ * rewrites its own entry every refresh, so a stale value means no statusline
+ * is running.
+ */
+export function newestRenderAt({ dir = userDataDir() } = {}) {
+  try {
+    let best = null;
+    for (const v of Object.values(readLastMap(dir))) {
+      if (v && Number.isFinite(v.at) && (best === null || v.at > best)) best = v.at;
+    }
+    return best;
+  } catch {
+    return null;
+  }
+}
+
 export function writeLastRender({
   dir = userDataDir(), key = 'default', text, now = Date.now(), maxAgeMs = DAY_MS,
 } = {}) {

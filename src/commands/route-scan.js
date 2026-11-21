@@ -48,6 +48,17 @@ function readPackageVersion() {
   }
 }
 
+/**
+ * macOS menu bar app: start it, or start building it, when a session starts.
+ * Called after the hook has printed everything, and it can neither throw nor
+ * delay the hook past a few file reads: the compile runs in a detached child.
+ */
+async function startBarApp() {
+  try {
+    (await import('../bar-app.js')).ensureBar();
+  } catch (e) { debug('route-scan:bar-app', e); }
+}
+
 export async function run({ args, hasFlag, numArg }) {
     const rs = await import('../route-scan.js');
     const { userLanguage } = await import('../config.js');
@@ -461,6 +472,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
         if (cohesionBlock) console.log(cohesionBlock);
+        await startBarApp();
         return; // nothing else to inject
       }
       if (secretsBlock) console.log(secretsBlock);
@@ -550,6 +562,7 @@ export async function run({ args, hasFlag, numArg }) {
           ...reviewRules.map((r) => `health|${r.signature}|${r.scope}`),
         ]);
       } catch (e) { debug('route-scan:seed-briefed', e); /* worst case is one duplicate brief */ }
+      await startBarApp();
       return;
     }
 

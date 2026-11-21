@@ -77,12 +77,13 @@ function normalizeCaps(caps) {
 /**
  * @param {object} [opts]
  * @param {number} [opts.maxAgeMs=5*60*1000] - drop snapshots older than this.
+ * @param {string} [opts.path] - snapshot file; `sprag bar` passes its own data folder's copy.
  * @returns {{ caps: object|null, model: string|null }|null}
  */
-export function loadRecentSnapshot({ maxAgeMs = 5 * 60 * 1000 } = {}) {
+export function loadRecentSnapshot({ maxAgeMs = 5 * 60 * 1000, path = CACHE_PATH } = {}) {
   try {
-    if (!existsSync(CACHE_PATH)) return null;
-    const raw = readFileSync(CACHE_PATH, 'utf8');
+    if (!existsSync(path)) return null;
+    const raw = readFileSync(path, 'utf8');
     const data = JSON.parse(raw);
     if (!data || typeof data.capturedAt !== 'number') return null;
     if (Date.now() - data.capturedAt > maxAgeMs) return null;

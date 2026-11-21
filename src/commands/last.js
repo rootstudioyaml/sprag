@@ -21,7 +21,7 @@
  *   - HH:MM:SS ✓ 5H cap warning resolved   ← skip
  *   - HH:MM:SS 📝 handoff written: ...     ← skip
  */
-function findLatestWarning(historyEntries, chipToCodes) {
+export function findLatestWarning(historyEntries, chipToCodes) {
   const warnings = [];
   for (const { date, content } of historyEntries) {
     const lines = content.split('\n');

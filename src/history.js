@@ -57,6 +57,23 @@ function loadState() {
   }
 }
 
+/**
+ * The chip the statusline last announced and when, for readers outside this
+ * module (the menu bar snapshot). Missing or broken file gives both null.
+ * loadState() keeps its own shape: it also carries the cap_* slots.
+ */
+export function readChipState(dir = BASE_DIR) {
+  try {
+    const s = JSON.parse(readFileSync(join(dir, 'last-chip.json'), 'utf8'));
+    return {
+      chip: typeof s?.chip === 'string' ? s.chip : null,
+      ts: typeof s?.ts === 'string' ? s.ts : null,
+    };
+  } catch {
+    return { chip: null, ts: null };
+  }
+}
+
 function saveState(state) {
   ensureDir(BASE_DIR);
   writeFileSync(STATE_PATH, JSON.stringify(state) + '\n');
@@ -93,7 +110,7 @@ function chipKo(chip) {
  *   "session {ID}: CODE_A, CODE_B"
  * Anything else falls through unchanged.
  */
-function detailKo(detail) {
+export function detailKo(detail) {
   if (!detail) return detail;
   // The threshold moved from 200k to 500k in v3.32, so both spellings have to
   // resolve: history files written by older versions still carry the old one.
