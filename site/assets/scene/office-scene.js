@@ -3512,8 +3512,10 @@ export function workShareOf(dc, saved, base, since){
  *   The tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
  *   With fewer than SMALL_TEAM.n ranked people the score percentile is squeezed into [0.3, 0.7] (squeezeSr), so only the normal and active tiers are reachable and only an idle person is low;
  *   the ranking, the score and the crown stay as they are, and the full ladder opens at SMALL_TEAM.n people. Grading and the drawer's company median are one value: median() of the known delegation shares.
- * Ranked: an unsuspended organization ranks every person with a machine in signal ok or late, so a quiet weekend keeps the animal while the month's data stands (the server's _office_standings is the same rule).
- * No data: a person whose machines are all paused or silent is 'nodata' and stays out of the ranking. */
+ * Ranked: an unsuspended organization ranks every person with a machine in signal ok or late, so a quiet weekend keeps the animal while the month's data stands (the server's _office_standings is the same rule),
+ *   unless the person has no usage in the period (spend under $0.01 and, when the organization collects prompts, no prompts): that person is quiet, a ghost outside the ranking, on the 1st of a month as on the 20th
+ *   (sprag-team 20261122000100_standing_idle_ghost.sql). So everyone ranked has some usage and is never idle; the chick goes to a person who used little, not to one who used nothing.
+ * No data: a person whose machines are all paused or silent, or who is quiet, is 'nodata' and stays out of the ranking. */
 export function officeSceneData(o){
   const money = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
   const t = o.t, usage = o.usage || {}, pr = Array.isArray(o.promptRows) ? o.promptRows : null, closed = !!o.closed;
@@ -3557,8 +3559,10 @@ export function officeSceneData(o){
     const sinceUs = rs.map(r => sinceUsage(usage[r.member_id] || {})), spentSince = usageTotal(sinceUs).total;
     let dcostSince = null, savedSince = 0; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; savedSince += Number(u.saved) || 0; });
     const hasSince = rs.some(r => { const u0 = usage[r.member_id]; return !!(u0 && u0.since && Array.isArray(u0.series)); });
+    /* no usage in the period (the server's idle test): out of the ranking whatever the signal says */
+    const quiet = spent < 0.01 && (!pr || prompts === 0);
     return { id: key, host, rs, spent, spentSince, dcostSince, savedSince, hasSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
-      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok' || r.signal === 'late'), dlg: spentSince + savedSince > 0 ? savedSince / (spentSince + savedSince) : 0 };
+      mix: fam ? mix : null, models, prompts, promptId, quiet, ok: !closed && !quiet && rs.some(r => r.signal === 'ok' || r.signal === 'late'), dlg: spentSince + savedSince > 0 ? savedSince / (spentSince + savedSince) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
@@ -3570,6 +3574,7 @@ export function officeSceneData(o){
   const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };
   ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg ?? 0) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
   const sc = ranked.map(p => p.score), med = median(dlKnown);
+  /* p.idle stays as the guard the grade and the crown read; it is always false here, because a person without usage is quiet and was left out of `ranked` above */
   ranked.forEach(p => { p.sr = squeezeSr(rank(sc, p.score), n); p.idle = p.spent < 0.01 && (!pr || !p.prompts); p.grade = gradeOf(p.sr, p.dlg, med, p.idle); p.tier = tierOfGrade(p.grade); });
   /* standings: rank 1 is the highest score (ties share a rank); the crown goes to rank 1 when at least two people are ranked and they spent something */
   ranked.forEach(p => { p.rank = 1 + ranked.filter(q => q.score > p.score + 1e-12).length; p.crown = n >= 2 && p.rank === 1 && !p.idle; });
@@ -3623,6 +3628,8 @@ export function officeSceneData(o){
       if(pr && p.prompts > 0) bubbles.push({ text: t('of.b.prompts', { n: p.prompts }, true) });
     }
     const late = p.rs.some(r => r.signal === 'late' || r.signal === 'silent') && !paused;
+    /* the tag follows town_view's state (ok when any machine uploads on time, then late, else paused): a ghost whose machines still upload has no usage in the period */
+    const nodataTag = p.rs.some(r => r.signal === 'ok') ? 'of.tag.quiet' : p.rs.some(r => r.signal === 'late') ? 'of.tag.late' : late ? 'of.tag.late' : 'of.tag.off';
     const no = gradeIndex(p.grade) + 1, noText = no ? t('of.g.no', { n: String(no).padStart(2, '0') }, true) + ' ' : '';
     if(!nodata && !closed) tip.push([t('of.d.rankk'), t('of.book.rank', { r: p.rank }, true) + ' / ' + n]);
     const cos = cosmeticsOf(cosm.get(p.id) || { pet: (p.rs.find(r => r.pet) || {}).pet || null }, { off: closed || nodata, toysLvl: o.toysLvl, keepPet: true });
@@ -3647,7 +3654,7 @@ export function officeSceneData(o){
           machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
           events: evs, canPrompts: !!(pr && p.promptId) };
       })(),
-      tierText: closed ? t('of.tag.closed') : t('of.tier.' + p.tier), tag: closed ? '' : nodata ? t(late ? 'of.tag.late' : 'of.tag.off') : '', bots: nodata ? [] : botsFor(p), bubbles };
+      tierText: closed ? t('of.tag.closed') : t('of.tier.' + p.tier), tag: closed ? '' : nodata ? t(nodataTag) : '', bots: nodata ? [] : botsFor(p), bubbles };
   });
   const cnt = k => people.filter(m => m.tier === k).length, used = Number(o.used) || 0, limit = Number(o.limit) || 0, free = limit > used ? limit - used : 0;
   const active = people.length - cnt('nodata'), act = ranked.length ? (cnt('power') + 0.6 * cnt('active') + 0.25 * cnt('normal')) / ranked.length : 0;
@@ -3703,7 +3710,8 @@ export function memberTownData(v, o){
   const gn = k => t('of.g.' + k);
   const noText = k => { const i = gradeIndex(k) + 1; return i ? t('of.g.no', { n: String(i).padStart(2, '0') }, true) + ' ' : ''; };
   const labelOf = (grade, tier) => (closed ? t('of.tag.closed') : noText(grade) + gn(grade) + ' · ' + t('of.tier.' + tier));
-  const tagOf = (tier, state) => (closed ? '' : tier === 'nodata' ? t(state === 'late' ? 'of.tag.late' : 'of.tag.off') : '');
+  /* town_view's state: ok (some machine uploads on time), late, or paused (every machine paused or silent). A ghost with state ok has no usage in the period. */
+  const tagOf = (tier, state) => (closed ? '' : tier === 'nodata' ? t(state === 'late' ? 'of.tag.late' : state === 'paused' ? 'of.tag.off' : 'of.tag.quiet') : '');
   const stateText = s => t('sr.s.' + (s === 'late' || s === 'paused' ? s : 'ok'));
   const tierOf = p => (closed || !p.tier || p.tier === 'nodata' || p.grade === 'ghost' ? 'nodata' : p.tier);
   /* cosmetics: everyone carries the level, the gear and the pet look the server sent (never a figure); the viewer's pet adds the photo kept in this browser */

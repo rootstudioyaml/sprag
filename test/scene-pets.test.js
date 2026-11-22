@@ -152,7 +152,7 @@ test('officeSceneData hands a machine\'s pet to its person; people without one g
   const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
   const pet = { kind: 'cat', coat: ['#e39a5c'], pattern: 'tabby', photo: 'data:image/png;base64,AA==' };
   const rows = [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok', pet }, { member_id: 'b', display_name: 'B', team_id: 't1', team_name: 'T', signal: 'ok' }];
-  const d = officeSceneData({ rows, usage: {}, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 2, limit: 30, orgName: 'O', rangeLabel: '30d', t: tt, money: x => '$' + x, rel: x => x, os: () => '' });
+  const d = officeSceneData({ rows, usage: { a: { spent: 5 }, b: { spent: 5 } }, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 2, limit: 30, orgName: 'O', rangeLabel: '30d', t: tt, money: x => '$' + x, rel: x => x, os: () => '' });
   const by = Object.fromEntries(d.people.map(p => [p.id, p]));
   assert.deepEqual(by.a.pet, pet); assert.equal(by.b.pet, null);
 });

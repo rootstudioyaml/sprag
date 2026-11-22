@@ -48,7 +48,7 @@ export const SPECIES = {
  * above the company median (`needDlg`). `gt` marks a strict floor. Copied from
  * GRADES in site/assets/scene/office-scene.js, and test/office-species.test.js
  * pins the two, so `sprag team status` and the office page show one ladder.
- * The chick is the idle row (no spend in the period) and has no floor.
+ * The chick is the last row and has no floor. A person with no usage in the period is not ranked and shows as a ghost, so the chick is for someone who used little.
  */
 const row = (key, minSr, tier, needDlg = false, gt = false) => ({ key, minSr, tier, needDlg, gt });
 export const GRADES = [

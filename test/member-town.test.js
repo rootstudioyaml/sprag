@@ -100,6 +100,9 @@ test('a ghost and a paused person show their state, a person with data does not 
   /* a late machine keeps its rank now (20261121000100), so a ghost that reads state late is a silent one: no contact for 30 days (the server folds silent into late for display) */
   const silent = run(town({ people: town().people.map(p => (p.id === 'd' ? { ...p, state: 'late' } : p)) }));
   assert.match(silent.people.find(p => p.id === 'd').tag, /Late/);
+  /* a ghost whose machines upload on time (state ok) has no usage in the period (20261122000100): the quiet tag, not "uploads off" */
+  const quiet = run(town({ people: town().people.map(p => (p.id === 'd' ? { ...p, state: 'ok' } : p)) }));
+  assert.match(quiet.people.find(p => p.id === 'd').tag, /No usage in this period/);
   assert.match(by('e').tip[1][1], /Paused/);
   assert.match(by('b').tip[1][1], /OK/);
   assert.equal(by('b').tag, '');
@@ -194,7 +197,7 @@ test('the scene reads only strings that office-i18n.js has, in both languages', 
   for(const s of ['ok', 'late', 'paused', 'silent']) dyn.push('sr.s.' + s);
   for(const s of ['on', 'off']) dyn.push('sr.sw.' + s);
   for(const e of ['joined', 'paused', 'resumed', 'left', 'removed', 'restored']) dyn.push('of.ev.' + e);
-  for(const e of ['of.tag.off', 'of.tag.late', 'of.tag.closed', 'of.d.next', 'of.d.next.d', 'of.d.next.xd', 'of.d.next.small', 'of.d.next.idle', 'of.d.top', 'of.d.crown', 'of.d.rank']) dyn.push(e);
+  for(const e of ['of.tag.off', 'of.tag.quiet', 'of.tag.late', 'of.tag.closed', 'of.d.next', 'of.d.next.d', 'of.d.next.xd', 'of.d.next.small', 'of.d.next.idle', 'of.d.top', 'of.d.crown', 'of.d.rank']) dyn.push(e);
   assert.deepEqual(dyn.filter(k => !have.has(k)), []);
 });
 

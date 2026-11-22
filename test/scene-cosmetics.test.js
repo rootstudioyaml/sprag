@@ -75,7 +75,8 @@ test('officeSceneData attaches org_cosmetics by person id; ghosts and a closed o
   const rows = [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok' }, { member_id: 'b', display_name: 'B', team_id: 't1', team_name: 'T', signal: 'ok', pet: { coat: ['#ffffff'] } },
     { member_id: 'g', display_name: 'G', team_id: 't1', team_name: 'T', signal: 'silent' }, { member_id: 'a2', display_name: 'A2', team_id: 't1', team_name: 'T', signal: 'ok', seat_of: 'a' }];
   const cosmetics = [{ member_id: 'a', lvl: 3, gear: { head: 'tophat', desk: 'trophy' }, pet: { kind: 'cat', coat: ['#e39a5c'] }, toys: true }, { member_id: 'g', lvl: 4, gear: { head: 'halo' } }];
-  const base = { rows, usage: {}, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 3, limit: 9, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '', events: [] };
+  /* some usage each: a person without any is a quiet ghost (20261122000100) and would hide the cosmetics */
+  const base = { rows, usage: { a: { spent: 5 }, b: { spent: 5 } }, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 3, limit: 9, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '', events: [] };
   const d = officeSceneData({ ...base, cosmetics }), by = Object.fromEntries(d.people.map(p => [p.id, p]));
   assert.equal(by.a.lvl, 3); assert.deepEqual(by.a.gear, { head: 'tophat', back: null, desk: 'trophy' }); assert.equal(by.a.pet.kind, 'cat'); assert.equal(by.a.petToys, true);
   assert.equal(by.b.lvl, 0); assert.deepEqual(by.b.pet, { coat: ['#ffffff'] }); assert.equal(by.b.petToys, false);
@@ -321,7 +322,7 @@ test('photo flags: a row with photo true gives the pet shared, the viewer\'s sel
   assert.equal(cosmeticsOf({ lvl: 2, pet }, { keepPet: true }).pet, pet, 'no photo flag: the object is kept as it is');
   assert.equal(cosmeticsOf({ lvl: 2, pet, photo: true }, { off: true }).pet, null);
   const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
-  const d = officeSceneData({ rows: [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok' }], usage: {}, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 1, limit: 2, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '', events: [],
+  const d = officeSceneData({ rows: [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok' }], usage: { a: { spent: 5 } }, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 1, limit: 2, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '', events: [],
     cosmetics: [{ member_id: 'a', lvl: 3, pet, photo: true }] });
   assert.equal(d.people[0].pet.shared, true); assert.equal(d.ui.view.photo, 'of.vw.photo'); assert.equal(d.ui.view.gear.lamp, 'of.gear.lamp'); assert.equal(d.ui.view.kind.cat, 'of.pet.cat');
 });

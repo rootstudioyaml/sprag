@@ -100,12 +100,13 @@ test('officeSceneData assigns grades, standings, book rows and day/today groups'
   for(const p of d.people) assert.equal(p.tier, p.grade === 'ghost' ? 'nodata' : GRADES[gradeIndex(p.grade)].tier, p.id);
   assert.equal(d.book.rows.length, 31);
   assert.equal(d.book.rows.reduce((a, r) => a + r.n, 0), d.people.length);
-  assert.equal(d.people.filter(p => p.grade === 'ghost').length, 1);
+  /* two ghosts: the person who stopped uploading (m19) and the one with no usage in the period (m0 spent 0) */
+  assert.deepEqual(d.people.filter(p => p.grade === 'ghost').map(p => p.id).sort(), ['m0', 'm19']);
   /* standings: one crown on rank 1, the leaderboard is the top five by rank */
   const crowned = d.people.filter(p => p.crown);
   assert.equal(crowned.length, 1); assert.equal(crowned[0].rank, 1);
   assert.deepEqual(d.book.top.rows.map(r => r.rk), [1, 2, 3, 4, 5].map(r => 'of.book.rank' + JSON.stringify({ r })));
-  assert.equal(d.people.find(p => p.grade === 'ghost').rank, 0);
+  assert.ok(d.people.filter(p => p.grade === 'ghost').every(p => p.rank === 0));
   /* the legend strip lists all thirty species by tier, with counts that match the guide; the keys explain the crown, the ghost and the robots */
   assert.deepEqual(d.strip.tiers.map(g => g.tier), TIERS);
   assert.deepEqual(d.strip.tiers.flatMap(g => g.items.map(q => q.k)), GRADES.map(g => g.k));
@@ -138,6 +139,7 @@ function fixture(shares, { runs = null, noShare = false, spend = null, costOnly 
   const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
   return officeSceneData({ rows, usage, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: shares.length, limit: 30, orgName: 'O', rangeLabel: '30d', t: tt, rel: x => x, os: () => '' });
 }
+const tt0 = (k, v) => k + (v ? JSON.stringify(v) : '');
 const byId = d => Object.fromEntries(d.people.map(p => [p.id, p]));
 
 test('squeezeSr: untouched from five people, [0.3, 0.7] below', () => {
@@ -166,9 +168,30 @@ test('small team: one person is the cat, three are sheep, cat and husky, four ne
   assert.ok(five.some(p => p.grade === 'chick'));
 });
 
-test('small team: a person with no spend is still the chick', () => {
-  const d = fixture([0.5, 0.5], { spend: [0, 20] }), q = byId(d);
-  assert.equal(q.m0.grade, 'chick'); assert.equal(q.m1.grade, 'husky');
+/* 20261122000100 (sprag-team): no usage in the period is a ghost outside the ranking, on the 1st of a month as on the 20th; the chick is for someone who used little */
+test('no usage in the period: a ghost with the quiet tag, rank 0, left out of the ranked count', () => {
+  const d = fixture([0.5, 0.5, 0.5], { spend: [0, 0.005, 20] }), q = byId(d);
+  for(const k of ['m0', 'm1']){
+    assert.equal(q[k].grade, 'ghost', k); assert.equal(q[k].tier, 'nodata', k); assert.equal(q[k].rank, 0, k); assert.equal(q[k].tag, 'of.tag.quiet', k);
+    assert.deepEqual(q[k].bots, [], k); assert.equal(q[k].crown, false, k);
+  }
+  /* the one person left is ranked among one: rank 1 of 1, no crown (the crown needs two ranked people) */
+  assert.equal(q.m2.rank, 1); assert.equal(q.m2.tier, 'active'); assert.equal(q.m2.crown, false); assert.deepEqual(q.m2.detail.next.slice(0, 1), ['of.d.rank{"r":1,"n":1}']);
+  assert.equal(JSON.parse(d.hud.stats.slice('of.hud'.length)).n, 1); assert.equal(JSON.parse(d.hud.stats.slice('of.hud'.length)).o, 2);
+  /* a person who spent a little still ranks, and with five ranked people the lowest score is the chick */
+  const e = fixture([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], { spend: [0, 0.02, 20, 30, 40, 50] }), r = byId(e);
+  assert.equal(r.m0.grade, 'ghost'); assert.equal(r.m0.tag, 'of.tag.quiet'); assert.equal(r.m1.grade, 'chick'); assert.equal(r.m1.rank, 5);
+  assert.ok(r.m1.detail.next.length > 0);
+});
+
+test('no usage with prompts collected: a person with prompts but no spend is ranked, one with neither is quiet', () => {
+  const rows = ['a', 'b', 'c'].map(id => ({ member_id: id, display_name: id.toUpperCase(), team_id: 't1', team_name: 'T', signal: 'ok' }));
+  const usage = { a: { spent: 0 }, b: { spent: 0 }, c: { spent: 12, saved: 0, delegated: 0 } };
+  const promptRows = [{ member_id: 'a', display_name: 'A', prompts: 4, chars: 100 }, { member_id: 'b', display_name: 'B', prompts: 0, chars: 0 }, { member_id: 'c', display_name: 'C', prompts: 2, chars: 50 }];
+  const d = byId(officeSceneData({ rows, usage, promptRows, teams: [{ id: 't1', name: 'T' }], used: 3, limit: 30, orgName: 'O', rangeLabel: '30d', t: (k, v) => k + (v ? JSON.stringify(v) : ''), rel: x => x, os: () => '' }));
+  assert.notEqual(d.a.grade, 'ghost'); assert.ok(d.a.rank >= 1);
+  assert.equal(d.b.grade, 'ghost'); assert.equal(d.b.tag, 'of.tag.quiet'); assert.equal(d.b.rank, 0);
+  assert.notEqual(d.c.grade, 'ghost');
 });
 
 test('small team: the drawer counts people on the squeezed span and says when the ladder is closed', () => {
@@ -263,6 +286,11 @@ test('late stays ranked: a late machine keeps the species, the rank, the bots an
     assert.equal(p.grade, 'ghost', k); assert.equal(p.tier, 'nodata', k); assert.equal(p.rank, 0, k); assert.deepEqual(p.bots, [], k); assert.equal(p.lvl, 0, k);
   }
   assert.equal(d.P0.tag, 'of.tag.off'); assert.equal(d.Q0.tag, 'of.tag.off'); assert.equal(d.S0.tag, 'of.tag.late');
+  /* an ok, a late and a mixed seat with usage keep their animal; the same seats without usage are quiet ghosts and say so (a late-only seat keeps the late tag) */
+  const quiet = byId(officeSceneData({ rows: [{ member_id: 'q', display_name: 'Q', team_id: 't1', team_name: 'T', signal: 'ok' }, { member_id: 'l', display_name: 'L', team_id: 't1', team_name: 'T', signal: 'late' },
+    { member_id: 'u', display_name: 'U', team_id: 't1', team_name: 'T', signal: 'ok' }], usage: { q: { spent: 0 }, l: { spent: 0 }, u: { spent: 9 } }, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 3, limit: 30, orgName: 'O',
+    rangeLabel: '30d', t: tt0, rel: x => x, os: () => '' }));
+  assert.equal(quiet.q.grade, 'ghost'); assert.equal(quiet.q.tag, 'of.tag.quiet'); assert.equal(quiet.l.grade, 'ghost'); assert.equal(quiet.l.tag, 'of.tag.late'); assert.notEqual(quiet.u.grade, 'ghost');
   /* a suspended organization ranks nobody, late or not */
   for(const p of Object.values(run(true))){ assert.equal(p.grade, 'ghost', p.id); assert.equal(p.tier, 'nodata', p.id); assert.equal(p.rank, 0, p.id); }
 });
