@@ -14,7 +14,7 @@
 
 import * as childProcess from 'node:child_process';
 import {
-  chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
@@ -35,6 +35,8 @@ export const LOCK_STALE_MS = 10 * 60 * 1000;
 /** A failed build of this source is not retried at session start for this long. */
 export const BUILD_RETRY_MS = 24 * 60 * 60 * 1000;
 const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
+/** Compile errors that a second try fixes. A build that failed this way is not held back for a day. */
+const TRANSIENT_ERROR = /was modified during the build/i;
 const ERROR_TAIL = 600;
 const BINARY_NAME = 'sprag-bar';
 
@@ -213,16 +215,35 @@ export function buildBar(deps = {}) {
     const folder = join(paths.dir, paths.version);
     mkdirSync(folder, { recursive: true, mode: 0o700 });
     const tmp = `${paths.binary}.tmp-${process.pid}`;
-    // The compiler inside the toolchain cannot find the SDK when run by its full path ("unable to load standard
-    // library"). /usr/bin/swiftc is the system's front door to the same compiler and sets the SDK up. Running it is
-    // safe here: findSwiftc has just confirmed developer tools are installed, so it cannot pop the install dialog.
-    const compiler = existsOf(deps)('/usr/bin/swiftc') ? '/usr/bin/swiftc' : swiftc;
-    const r = runOf(deps)(compiler, ['-O', '-swift-version', '5', deps.source ?? BAR_SOURCE, '-o', tmp], {
-      timeout: BUILD_TIMEOUT_MS, stdio: 'pipe', windowsHide: true, maxBuffer: 16 * 1024 * 1024,
-    });
+    // swiftc reads a copy of the source. `npm install -g` of the same version rewrites the package's
+    // SpragBar.swift with the same bytes and a new mtime, and swiftc fails a build whose input changed while it
+    // ran ("was modified during the build"). The copy sits in its own folder so it keeps its file name.
+    const srcDir = join(folder, `src-${process.pid}`);
+    const srcCopy = join(srcDir, basename(BAR_SOURCE));
     let error = null;
-    if (r.error) error = r.error.code === 'ETIMEDOUT' ? 'timeout after 5 minutes' : String(r.error.message ?? r.error);
-    else if (r.status !== 0) error = String(r.stderr ?? '').trim().slice(-ERROR_TAIL) || `swiftc exited with status ${r.status}`;
+    let transient = false;
+    try {
+      rmSync(srcDir, { recursive: true, force: true });
+      mkdirSync(srcDir, { recursive: true, mode: 0o700 });
+      copyFileSync(deps.source ?? BAR_SOURCE, srcCopy);
+    } catch (e) {
+      // The package folder can be missing for a moment while npm swaps it, so the next session tries again.
+      error = `could not copy the source: ${String(e?.message ?? e)}`;
+      transient = true;
+    }
+    if (!error) {
+      // The compiler inside the toolchain cannot find the SDK when run by its full path ("unable to load standard
+      // library"). /usr/bin/swiftc is the system's front door to the same compiler and sets the SDK up. Running it is
+      // safe here: findSwiftc has just confirmed developer tools are installed, so it cannot pop the install dialog.
+      const compiler = existsOf(deps)('/usr/bin/swiftc') ? '/usr/bin/swiftc' : swiftc;
+      const r = runOf(deps)(compiler, ['-O', '-swift-version', '5', srcCopy, '-o', tmp], {
+        timeout: BUILD_TIMEOUT_MS, stdio: 'pipe', windowsHide: true, maxBuffer: 16 * 1024 * 1024,
+      });
+      if (r.error) error = r.error.code === 'ETIMEDOUT' ? 'timeout after 5 minutes' : String(r.error.message ?? r.error);
+      else if (r.status !== 0) error = String(r.stderr ?? '').trim().slice(-ERROR_TAIL) || `swiftc exited with status ${r.status}`;
+      if (error && TRANSIENT_ERROR.test(error)) transient = true;
+    }
+    try { rmSync(srcDir, { recursive: true, force: true }); } catch { /* a stray copy is only disk space */ }
     if (!error) {
       try {
         renameSync(tmp, paths.binary);
@@ -236,9 +257,9 @@ export function buildBar(deps = {}) {
       error = error.slice(-ERROR_TAIL);
     }
     const ms = clock() - started;
-    writeBuildState(paths, { version: paths.version, ok: !error, at: clock(), ms, error });
+    writeBuildState(paths, { version: paths.version, ok: !error, at: clock(), ms, error, ...(transient ? { transient: true } : {}) });
     if (!error) pruneOtherVersions(paths);
-    return { ok: !error, ms, error };
+    return { ok: !error, ms, error, ...(transient ? { transient: true } : {}) };
   } finally {
     try { rmSync(paths.buildLock, { force: true }); } catch { /* a stale lock expires by itself */ }
   }
@@ -279,6 +300,31 @@ export function launchBar(deps = {}) {
 }
 
 /**
+ * Whether the recorded build state keeps session start from compiling this build.
+ * A compile that failed is not retried for a day. A missing toolchain is looked for again every time: the check
+ * costs one short command, and installing the tools should bring the app at the next session. A transient failure
+ * (the source changed or vanished while a reinstall of the package rewrote it) is tried again at the next session.
+ */
+function buildHeldBack(state, version, now) {
+  return Boolean(state && state.version === version && state.ok === false && state.error !== 'no-toolchain'
+    && state.transient !== true && Number.isFinite(state.at) && now - state.at < BUILD_RETRY_MS);
+}
+
+/**
+ * The line a session start prints when a failed compile holds the app back, or null when nothing does.
+ * Without it the only place the failure shows is `sprag bar status`, which nobody opens while the app is missing.
+ */
+export function barBuildBlockedNotice({ lang = 'en', now = Date.now(), ...deps } = {}) {
+  const paths = barPaths(deps);
+  const state = readBuildState(deps);
+  if (!buildHeldBack(state, paths.version, now)) return null;
+  const hours = Math.max(1, Math.ceil((state.at + BUILD_RETRY_MS - now) / 3_600_000));
+  return lang === 'ko'
+    ? `✇ [sprag] Sprag Bar 컴파일이 실패해서 앞으로 ${hours}시간 동안 세션을 시작해도 다시 컴파일하지 않습니다. 지금 다시 하려면 \`sprag bar build --then-launch\` 를 실행하십시오. 오류는 \`sprag bar status\` 에 나옵니다. 사용자에게 이 내용을 한 줄로 알리십시오.`
+    : `✇ [sprag] The Sprag Bar compile failed, so sessions will not compile it again for the next ${hours}h. Run \`sprag bar build --then-launch\` to try now; \`sprag bar status\` shows the error. Tell the user this in one line.`;
+}
+
+/**
  * Session start: make sure the app is running, building it first when needed.
  * Returns why it did what it did and never throws. 'started', 'restarted' and
  * 'running' mean the app is up; 'building' means a background build will start it.
@@ -303,10 +349,7 @@ export function ensureBar({ platform = process.platform, env = process.env, cfg,
       return restart ? 'restarted' : 'started';
     }
     const state = readBuildState(d);
-    // A compile that failed is not retried for a day. A missing toolchain is looked for again every time:
-    // the check costs one short command, and installing the tools should bring the app at the next session.
-    if (state && state.version === paths.version && state.ok === false && state.error !== 'no-toolchain'
-      && Number.isFinite(state.at) && now - state.at < BUILD_RETRY_MS) return 'build-failed';
+    if (buildHeldBack(state, paths.version, now)) return 'build-failed';
     const age = lockAge(paths, now);
     if (age !== null && age < LOCK_STALE_MS) return 'building';
     if (!findSwiftc(d)) {

@@ -53,9 +53,14 @@ function readPackageVersion() {
  * Called after the hook has printed everything, and it can neither throw nor
  * delay the hook past a few file reads: the compile runs in a detached child.
  */
-async function startBarApp() {
+async function startBarApp(lang) {
   try {
-    (await import('../bar-app.js')).ensureBar();
+    const bar = await import('../bar-app.js');
+    // A failed compile holds the app back for a day; say so, or the user only sees an empty menu bar.
+    if (bar.ensureBar() === 'build-failed') {
+      const notice = bar.barBuildBlockedNotice({ lang });
+      if (notice) console.log(notice);
+    }
   } catch (e) { debug('route-scan:bar-app', e); }
 }
 
@@ -488,7 +493,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
         if (cohesionBlock) console.log(cohesionBlock);
-        await startBarApp();
+        await startBarApp(lang);
         return; // nothing else to inject
       }
       if (secretsBlock) console.log(secretsBlock);
@@ -578,7 +583,7 @@ export async function run({ args, hasFlag, numArg }) {
           ...reviewRules.map((r) => `health|${r.signature}|${r.scope}`),
         ]);
       } catch (e) { debug('route-scan:seed-briefed', e); /* worst case is one duplicate brief */ }
-      await startBarApp();
+      await startBarApp(lang);
       return;
     }
 

@@ -21,6 +21,7 @@ import {
   removeBarFiles,
   stopBar,
   barBuildId,
+  barBuildBlockedNotice,
 } from '../src/bar-app.js';
 import { CLI_ENTRY, DETACHED_CHILD_VAR, spawnDetachedCli } from '../src/cli-entry.js';
 import { run as runBarCommand } from '../src/commands/bar.js';
@@ -233,7 +234,8 @@ test('buildBar takes the lock, compiles to a temp file, renames it, records the 
   assert.equal(existsSync(paths.buildLock), false, 'and released afterwards');
   const call = run.calls.at(-1);
   assert.equal(call.cmd, '/usr/bin/swiftc');
-  assert.deepEqual(call.args.slice(0, 4), ['-O', '-swift-version', '5', BAR_SOURCE]);
+  assert.deepEqual(call.args.slice(0, 3), ['-O', '-swift-version', '5']);
+  assert.equal(call.args[3], join(paths.dir, VERSION, `src-${process.pid}`, 'SpragBar.swift'), 'swiftc reads a copy, not the package file');
   assert.equal(call.args[4], '-o');
   assert.equal(call.args[5], `${paths.binary}.tmp-${process.pid}`);
   assert.equal(call.opts.timeout, 5 * 60 * 1000);
@@ -274,6 +276,63 @@ test('buildBar records the last 600 characters of stderr when swiftc fails', (t)
   assert.equal(state.error, r.error);
   assert.equal(existsSync(paths.binary), false);
   assert.equal(existsSync(paths.buildLock), false, 'the lock is released on failure too');
+});
+
+test('buildBar compiles a copy, so a reinstall that rewrites the package source mid-build does not break it (#21)', (t) => {
+  const { deps, paths, dataDir } = setup(t);
+  const source = join(dataDir, 'pkg', 'SpragBar.swift');
+  mkdirSync(dirname(source), { recursive: true });
+  writeFileSync(source, '// v1\n');
+  let seen = null;
+  const run = compiler({
+    onRun: (args) => {
+      // npm install -g of the same version rewrites the file while swiftc runs.
+      writeFileSync(source, '// v1\n');
+      seen = readFileSync(args[3], 'utf8');
+      assert.notEqual(args[3], source);
+    },
+  });
+  assert.equal(buildBar({ ...deps, source, run }).ok, true);
+  assert.equal(seen, '// v1\n');
+  assert.deepEqual(readdirSync(join(paths.dir, VERSION)), ['sprag-bar'], 'the copy is removed');
+});
+
+test('buildBar marks "modified during the build" and a missing source as transient, and a real error as not', (t) => {
+  const { deps, paths, dataDir } = setup(t);
+  const modified = buildBar({ ...deps, run: compiler({ fail: "error: input file '/x/SpragBar.swift' was modified during the build" }) });
+  assert.equal(modified.transient, true);
+  assert.equal(JSON.parse(readFileSync(paths.buildState, 'utf8')).transient, true);
+  const missing = buildBar({ ...deps, source: join(dataDir, 'gone', 'SpragBar.swift'), run: compiler() });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.transient, true);
+  assert.match(missing.error, /could not copy the source/);
+  assert.deepEqual(readdirSync(join(paths.dir, VERSION)), [], 'no copy folder is left');
+  const real = buildBar({ ...deps, run: compiler({ fail: 'error: cannot find type Foo' }) });
+  assert.equal(real.transient, undefined);
+  assert.equal(JSON.parse(readFileSync(paths.buildState, 'utf8')).transient, undefined);
+});
+
+test('ensureBar retries a transient failure at the next session instead of waiting a day (#21)', (t) => {
+  const { deps, paths } = setup(t);
+  writeState(paths, { version: VERSION, ok: false, at: NOW - 60_000, ms: 25_000, error: 'was modified during the build', transient: true });
+  const calls = [];
+  assert.equal(ensureBar({ ...deps, ...MAC, spawnCli: (args) => { calls.push(args); return true; } }), 'building');
+  assert.deepEqual(calls, [['bar', 'build', '--then-launch']]);
+  assert.equal(barBuildBlockedNotice({ ...deps, now: NOW }), null);
+});
+
+test('barBuildBlockedNotice names the hours left and the command, only while a failure holds the build back', (t) => {
+  const { deps, paths } = setup(t);
+  assert.equal(barBuildBlockedNotice({ ...deps, now: NOW }), null, 'no state, no notice');
+  writeState(paths, { version: VERSION, ok: false, at: NOW - 3 * 3600_000, ms: 10, error: 'boom' });
+  const ko = barBuildBlockedNotice({ ...deps, now: NOW, lang: 'ko' });
+  assert.match(ko, /21시간/);
+  assert.match(ko, /sprag bar build --then-launch/);
+  assert.match(barBuildBlockedNotice({ ...deps, now: NOW }), /next 21h/);
+  writeState(paths, { version: VERSION, ok: false, at: NOW - 25 * 3600_000, ms: 10, error: 'boom' });
+  assert.equal(barBuildBlockedNotice({ ...deps, now: NOW }), null, 'a day later the build runs again');
+  writeState(paths, { version: VERSION, ok: false, at: NOW - 60_000, ms: 0, error: 'no-toolchain' });
+  assert.equal(barBuildBlockedNotice({ ...deps, now: NOW }), null, 'a missing toolchain is not a held-back build');
 });
 
 test('buildBar reports a timeout from the compiler as an error', (t) => {
