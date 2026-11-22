@@ -270,6 +270,38 @@ func jump(to s: Session) {
     }
     owningApp(s.pid)?.activate(options: [.activateAllWindows])
 }
+/** The folder a Claude session worked in, read from its transcript (`<config>/projects/<folder>/<id>.jsonl`, whose lines carry `cwd`). */
+func sessionCwd(_ sid: String) -> String? {
+    let base = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"].map { ($0 as NSString).expandingTildeInPath } ?? NSHomeDirectory() + "/.claude"
+    let root = base + "/projects", fm = FileManager.default
+    for dir in (try? fm.contentsOfDirectory(atPath: root)) ?? [] {
+        let file = root + "/" + dir + "/" + sid + ".jsonl"
+        guard let h = FileHandle(forReadingAtPath: file) else { continue }
+        defer { try? h.close() }
+        let head = h.readData(ofLength: 256 * 1024)
+        for line in head.split(separator: UInt8(ascii: "\n")).prefix(200) {
+            if let o = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any], let c = o["cwd"] as? String, fm.fileExists(atPath: c) { return c }
+        }
+    }
+    return nil
+}
+/**
+ * Reopen an ended Claude session in a new terminal window, in the folder it worked in, so a person can read what it was
+ * doing before deciding whether to stop what it left running. Once it is back, its leftovers count as that session's again.
+ */
+@discardableResult func resumeSession(_ sid: String, fallbackDir: String?) -> Bool {
+    guard !sid.isEmpty, sid.count <= 64, sid.allSatisfy({ $0.isHexDigit || $0 == "-" }) else { return false }
+    let dir = sessionCwd(sid) ?? fallbackDir ?? NSHomeDirectory()
+    let q = "'" + dir.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    // a login, interactive shell so PATH finds claude; the shell stays open after claude exits
+    let script = "#!/bin/zsh\ncd \(q) || exit 1\nexec /bin/zsh -lic 'claude --resume \(sid); exec /bin/zsh -il'\n"
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("sprag-resume-\(sid).command")
+    do {
+        try script.write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+    } catch { return false }
+    return NSWorkspace.shared.open(url)
+}
 /** A name a person recognises: the app for anything inside an .app bundle, else the executable's file name. */
 func appName(_ pid: Int32, _ fallback: String) -> String {
     var buf = [CChar](repeating: 0, count: 4096)
@@ -448,6 +480,7 @@ final class Model: ObservableObject {
     var leftoverPids: [String: [(pid: Int32, start: UInt64)]] = [:]   // each leftover line: its processes, with the start time that identifies them
     var leftoverShared: Set<String> = []       // leftover lines that are apps, virtual machines or databases: never part of a clean-up
     var leftoverWhere: [String: String] = [:]  // each leftover line: the folder it runs in, which names the project its session worked on
+    var leftoverSession: [String: String] = [:] // each leftover line: the id of the ended Claude session that started it
     /** The leftover lines that hold an open connection right now. Read when the clean-up choices open, not on every poll. */
     func leftoverBusy(_ labels: [String]) -> Set<String> {
         Set(labels.filter { label in (leftoverPids[label] ?? []).contains { hasOpenConnection($0.pid) } })
@@ -516,6 +549,7 @@ final class Model: ObservableObject {
         var cls: [Int32: Cls] = [:], nameAs: [Int32: Proc] = [:], kids: [Int32: [Int32]] = [:]
         for p in all.values { kids[p.ppid, default: []].append(p.pid) }
         let home = NSHomeDirectory()
+        var leftSid: [Int32: String] = [:]   // top of a leftover tree: the ended session that started it
         for r in rows where r.owner == nil && cls[r.top.pid] == nil {
             let own = origin(r.top)
             var sid = own.sid, cpid = own.cpid
@@ -527,7 +561,7 @@ final class Model: ObservableObject {
                 let here = sessions.filter { $0.cwd == dir }
                 if here.count == 1 { live = here[0].pid }
             }
-            if let o = live { cls[r.top.pid] = .session(o) } else { cls[r.top.pid] = (sid != nil || cpid != nil) ? .left : .other }
+            if let o = live { cls[r.top.pid] = .session(o) } else { cls[r.top.pid] = (sid != nil || cpid != nil) ? .left : .other; if let s = sid { leftSid[r.top.pid] = s } }
         }
         // 3. a helper the system started on a program's behalf (a virtual machine, an XPC service) goes where that program went
         if let responsible = RESPONSIBLE {
@@ -536,11 +570,11 @@ final class Model: ObservableObject {
                 let r = responsible(top)
                 guard r > 1, r != top else { continue }
                 if let o = treeOwner[r] { cls[top] = .session(Int(o)); nameAs[top] = all[r] }
-                else if let t = topOf[r], t != top, let c2 = cls[t] { if case .other = c2 { continue }; cls[top] = c2; nameAs[top] = all[t] }
+                else if let t = topOf[r], t != top, let c2 = cls[t] { if case .other = c2 { continue }; cls[top] = c2; nameAs[top] = all[t]; if let s = leftSid[t] { leftSid[top] = s } }
             }
         }
         var use: [Int: Usage] = [:], left = Load(), leftBy: [String: Load] = [:], otherBy: [String: Load] = [:], owners: [Int32: Int] = [:], labels: [Int32: String] = [:]
-        var leftProcs: [String: [(pid: Int32, start: UInt64)]] = [:], shared: Set<String> = [], leftWhere: [String: String] = [:]
+        var leftProcs: [String: [(pid: Int32, start: UInt64)]] = [:], shared: Set<String> = [], leftWhere: [String: String] = [:], leftSession: [String: String] = [:]
         let nowSec = UInt64(now)
         for r in rows {
             if let o = r.owner {
@@ -556,11 +590,12 @@ final class Model: ObservableObject {
                 left.add(r.cpu, r.p.memMb); leftBy[label, default: Load()].add(r.cpu, r.p.memMb); owners[r.p.pid] = -1
                 leftProcs[label, default: []].append((pid: r.p.pid, start: r.p.start))
                 if leftWhere[label] == nil, let c = procCwd(r.p.pid), c.count > 1, c != NSHomeDirectory() { leftWhere[label] = (c as NSString).lastPathComponent }
+                if leftSession[label] == nil, let s = leftSid[r.top.pid] { leftSession[label] = s }
                 if !shared.contains(label), isSharedService(nameAs[r.top.pid] ?? r.top) || isSharedService(r.top) { shared.insert(label) }
             case .other: otherBy[label, default: Load()].add(r.cpu, r.p.memMb)
             }
         }
-        ownerOf = owners; labelOf = labels; leftoverPids = leftProcs; leftoverShared = shared; leftoverWhere = leftWhere
+        ownerOf = owners; labelOf = labels; leftoverPids = leftProcs; leftoverShared = shared; leftoverWhere = leftWhere; leftoverSession = leftSession
         cpuSeen = all.mapValues { $0.cpuNs }; cpuSeenAt = now; if span > 0 { censusReady = true }
         origins = origins.filter { all[$0.key] != nil }; appNames = appNames.filter { all[$0.key] != nil }; inherited = inherited.filter { all[$0.key] != nil }
         let list: ([String: Load]) -> [AppLoad] = { d in d.map { AppLoad(id: $0.key, name: $0.key, cpu: $0.value.cpu, mem: $0.value.mem, n: $0.value.n) }.sorted { $0.mem > $1.mem } }
@@ -836,72 +871,669 @@ final class RuleBook: ObservableObject {
     }
 }
 
-// ---------- the runner: a dog drawn in code as a template image ----------
-struct Pose { let fn: (Double, Double), ff: (Double, Double), hn: (Double, Double), hf: (Double, Double); let lift: Double, stretch: Double }
-// Each leg: (upper, lower) segment angle in degrees from straight down, + is forward. A six-frame gallop.
-let GALLOP: [Pose] = [
-    Pose(fn: (70, 80), ff: (54, 66), hn: (-66, -80), hf: (-50, -64), lift: 1.0, stretch: 0.9),   // flight, stretched out
-    Pose(fn: (38, 18), ff: (54, 42), hn: (-56, -82), hf: (-42, -68), lift: 0.3, stretch: 0.6),   // front legs land
-    Pose(fn: (2, -14), ff: (20, 6), hn: (-24, -70), hf: (-38, -80), lift: -0.5, stretch: 0.1),   // weight over the front
-    Pose(fn: (-28, -52), ff: (-12, -34), hn: (34, 10), hf: (20, -6), lift: -0.3, stretch: -0.8), // gathered, hind legs reach under
-    Pose(fn: (16, -52), ff: (34, -32), hn: (14, 0), hf: (0, -14), lift: 0.2, stretch: -0.4),     // hind legs carry
-    Pose(fn: (56, 26), ff: (66, 46), hn: (-30, -40), hf: (-44, -56), lift: 0.7, stretch: 0.4),   // push off
-]
-let STAND = Pose(fn: (4, -2), ff: (-7, 3), hn: (-9, 6), hf: (5, 12), lift: 0, stretch: 0)
+// ---------- the runner: the member's town animal, drawn in code as a template image ----------
+// Thirty species and the ghost, one per grade of Sprag Town (GRADES in site/assets/scene/office-scene.js). They share a
+// whole-body gallop (the spine gathers and stretches, the body pitches and bounces, the tail trails) in a three-quarter
+// view with two eyes; birds and the dragon fly, the frog hops, the duck and chick walk, the ghost floats.
 let RUNNER_SCALE: CGFloat = 0.9
-func runner(frame: Int, idle: Bool) -> NSImage {
+/** The species to draw: the member's town grade; without one (no team, nothing uploaded) the ghost. */
+func runnerSpecies(_ grade: String?) -> Sp { SPECIES.first { $0.id == grade } ?? SPECIES.first { $0.id == "ghost" }! }
+struct Key { let flex, pitch, lift: Double; let fn, ff, hn, hf: (Double, Double) }
+// flex: +1 stretched out, -1 gathered (back arched). pitch: degrees, + nose up. lift: units above the standing height.
+let GAL: [Key] = [
+    Key(flex: 1.0, pitch: 0, lift: 1.9, fn: (72, 84), ff: (60, 74), hn: (-74, -88), hf: (-60, -78)),     // flight, stretched
+    Key(flex: 0.55, pitch: -7, lift: 0.7, fn: (36, 14), ff: (52, 36), hn: (-62, -84), hf: (-48, -72)),    // front lands
+    Key(flex: 0.0, pitch: -11, lift: -0.4, fn: (2, -16), ff: (20, 4), hn: (-26, -62), hf: (-40, -76)),     // weight over the front
+    Key(flex: -0.6, pitch: -5, lift: 0.3, fn: (-30, -58), ff: (-16, -44), hn: (24, 4), hf: (8, -14)),      // front pushes, hind swing under
+    Key(flex: -1.0, pitch: 3, lift: 1.4, fn: (-44, -88), ff: (-30, -76), hn: (52, 30), hf: (40, 16)),      // gathered flight
+    Key(flex: -0.55, pitch: 9, lift: 0.3, fn: (8, -50), ff: (24, -30), hn: (30, 8), hf: (16, -8)),         // hind lands
+    Key(flex: 0.0, pitch: 11, lift: -0.3, fn: (44, 18), ff: (56, 34), hn: (0, -14), hf: (-16, -30)),       // hind carry
+    Key(flex: 0.6, pitch: 6, lift: 0.9, fn: (66, 58), ff: (62, 64), hn: (-44, -60), hf: (-56, -70)),       // push off
+]
+let STAND2 = Key(flex: 0, pitch: 0, lift: 0, fn: (4, -2), ff: (-6, 3), hn: (-8, 6), hf: (5, 12))
+
+enum Ear { case pricked, round, long, cat, tiny, floppy, side, mouse, horse, sheep, pig, none }
+enum Tail { case curl, long, bushy, stub, tuft, thin, curly, ringed, squirrel, thinLong, hang, flow, wag, short, monkey, rope, none }
+struct Sp {
+    let id: String, label: String
+    var ear: Ear = .pricked, tail: Tail = .long
+    var len = 9.6, chest = 3.4, hip = 3.0          // spine length, torso radii
+    var legF = 7.4, legH = 7.6                     // leg lengths
+    var head = 2.9, snout = 3.0, snoutH = 1.0      // head radius, muzzle length and depth
+    var neckX = 3.6, neckY = 4.4                   // head offset from the shoulder
+    var flexAmp = 1.0, liftAmp = 1.0, pitchAmp = 1.0
+    var mane = false, legW = 1.0, waddle = false, fly = 0, hump = false, eyeK = 1.0, x: Set<String> = [], kind = 0, eyeDx: Double = 0
+}
+let SPECIES: [Sp] = [
+    Sp(id: "husky", label: "허스키", ear: .pricked, tail: .curl),
+    Sp(id: "cat", label: "고양이", ear: .cat, tail: .long, len: 10.4, chest: 3.0, hip: 2.8, legF: 7.0, legH: 7.4, head: 2.7, snout: 1.2, snoutH: 1.4, neckX: 3.2, neckY: 4.0, flexAmp: 1.25, liftAmp: 1.15, pitchAmp: 1.1, legW: 0.9),
+    Sp(id: "fox", label: "여우", ear: .pricked, tail: .bushy, len: 10.0, chest: 3.1, hip: 2.8, legF: 7.0, legH: 7.2, head: 2.6, snout: 3.6, snoutH: 0.8, flexAmp: 1.1, legW: 0.9),
+    Sp(id: "cheetah", label: "치타", ear: .round, tail: .long, len: 11.4, chest: 3.0, hip: 2.5, legF: 8.2, legH: 8.4, head: 2.3, snout: 1.4, snoutH: 1.2, neckX: 3.0, neckY: 3.4, flexAmp: 1.45, liftAmp: 1.1, pitchAmp: 1.0, legW: 0.85),
+    Sp(id: "lion", label: "사자", ear: .round, tail: .tuft, len: 10.6, chest: 3.8, hip: 3.0, legF: 7.4, legH: 7.6, head: 2.5, snout: 1.8, snoutH: 1.6, flexAmp: 0.9, liftAmp: 0.9, mane: true, legW: 1.1),
+    Sp(id: "rabbit", label: "토끼", ear: .long, tail: .stub, len: 8.4, chest: 3.0, hip: 3.6, legF: 5.0, legH: 8.0, head: 2.7, snout: 1.0, snoutH: 1.6, neckX: 3.0, neckY: 3.6, flexAmp: 1.4, liftAmp: 1.5, pitchAmp: 1.6, legW: 0.95),
+    Sp(id: "bear", label: "곰", ear: .round, tail: .stub, len: 12.6, chest: 3.5, hip: 3.3, legF: 10.0, legH: 10.0, head: 2.5, snout: 3.2, snoutH: 1.3, neckX: 4.4, neckY: 0.9, flexAmp: 0.6, liftAmp: 0.6, pitchAmp: 0.9, legW: 1.5, hump: true, eyeK: 0.85),
+    Sp(id: "penguin", label: "펭귄", waddle: true),
+    Sp(id: "eagle", label: "독수리", fly: 1),
+    Sp(id: "owl", label: "부엉이", fly: 2),
+    Sp(id: "dragon", label: "용", fly: 3),
+    Sp(id: "unicorn", label: "유니콘", ear: .horse, tail: .flow, len: 11.0, chest: 3.1, hip: 2.9, legF: 9.2, legH: 9.2, head: 2.2, snout: 3.2, snoutH: 1.2, neckX: 4.2, neckY: 4.2, flexAmp: 1.0, liftAmp: 1.1, legW: 0.95, x: ["horn", "neckmane", "wings"]),
+    Sp(id: "tiger", label: "호랑이", ear: .round, tail: .long, len: 11.0, chest: 3.6, hip: 3.1, legF: 7.6, legH: 7.8, head: 2.6, snout: 1.7, snoutH: 1.5, flexAmp: 1.1, legW: 1.1, x: ["stripes"]),
+    Sp(id: "wolf", label: "늑대", ear: .pricked, tail: .hang, len: 10.8, chest: 3.3, hip: 2.8, legF: 8.4, legH: 8.6, head: 2.6, snout: 3.6, snoutH: 0.95, flexAmp: 1.15, legW: 0.95),
+    Sp(id: "panda", label: "판다", ear: .round, tail: .stub, len: 9.6, chest: 4.0, hip: 3.8, legF: 6.6, legH: 6.6, head: 3.0, snout: 1.2, snoutH: 1.6, neckX: 3.4, neckY: 2.8, flexAmp: 0.6, liftAmp: 0.6, pitchAmp: 1.2, legW: 1.4, x: ["panda"]),
+    Sp(id: "koala", label: "코알라", ear: .side, tail: .none, len: 8.6, chest: 3.6, hip: 3.6, legF: 6.0, legH: 6.0, head: 3.1, snout: 0, snoutH: 1.0, neckX: 3.2, neckY: 3.2, flexAmp: 0.7, liftAmp: 0.8, legW: 1.3, x: ["koalanose"]),
+    Sp(id: "raccoon", label: "너구리", ear: .cat, tail: .ringed, len: 9.6, chest: 3.1, hip: 3.1, legF: 6.4, legH: 6.6, head: 2.6, snout: 2.4, snoutH: 0.9, flexAmp: 1.0, legW: 1.0),
+    Sp(id: "dog", label: "강아지", ear: .floppy, tail: .wag, len: 9.0, chest: 3.2, hip: 2.9, legF: 6.8, legH: 7.0, head: 2.8, snout: 2.9, snoutH: 1.2, flexAmp: 1.0, liftAmp: 1.1, legW: 1.0),
+    Sp(id: "monkey", label: "원숭이", ear: .side, tail: .monkey, len: 9.0, chest: 3.0, hip: 2.8, legF: 8.6, legH: 7.4, head: 2.8, snout: 1.3, snoutH: 1.5, flexAmp: 1.1, liftAmp: 1.2, legW: 0.95),
+    Sp(id: "deer", label: "사슴", ear: .horse, tail: .short, len: 10.4, chest: 3.0, hip: 2.8, legF: 11.0, legH: 11.4, head: 2.3, snout: 2.8, snoutH: 1.0, neckX: 3.6, neckY: 5.2, flexAmp: 1.2, liftAmp: 1.35, legW: 0.8, x: ["antlers"]),
+    Sp(id: "elephant", label: "코끼리", ear: .none, tail: .rope, len: 11.2, chest: 4.5, hip: 4.2, legF: 7.4, legH: 7.4, head: 3.1, snout: 0, snoutH: 1.0, neckX: 3.2, neckY: 2.6, flexAmp: 0.4, liftAmp: 0.45, pitchAmp: 0.8, legW: 1.8, x: ["trunk"], eyeDx: 0.18),
+    Sp(id: "pig", label: "돼지", ear: .pig, tail: .curly, len: 10.0, chest: 3.6, hip: 3.6, legF: 5.6, legH: 5.6, head: 2.8, snout: 0, snoutH: 1.0, neckX: 3.4, neckY: 2.6, flexAmp: 0.6, liftAmp: 0.7, legW: 1.2, x: ["pigsnout"]),
+    Sp(id: "sheep", label: "양", ear: .sheep, tail: .stub, len: 9.6, chest: 3.6, hip: 3.6, legF: 9.2, legH: 9.2, head: 2.2, snout: 1.8, snoutH: 1.3, neckX: 4.4, neckY: 3.0, flexAmp: 0.7, liftAmp: 0.9, legW: 0.75, x: ["wool"]),
+    Sp(id: "hedgehog", label: "고슴도치", ear: .round, tail: .none, len: 8.4, chest: 3.0, hip: 3.0, legF: 4.2, legH: 4.2, head: 2.3, snout: 2.8, snoutH: 0.8, neckX: 3.6, neckY: 1.6, flexAmp: 0.4, liftAmp: 0.4, legW: 0.9, x: ["spikes"]),
+    Sp(id: "squirrel", label: "다람쥐", ear: .cat, tail: .squirrel, len: 8.0, chest: 2.6, hip: 2.9, legF: 5.0, legH: 7.0, head: 2.5, snout: 1.2, snoutH: 1.2, neckX: 3.0, neckY: 3.4, flexAmp: 1.3, liftAmp: 1.35, pitchAmp: 1.4, legW: 0.85),
+    Sp(id: "hamster", label: "햄스터", ear: .round, tail: .none, len: 7.6, chest: 3.6, hip: 3.8, legF: 3.6, legH: 3.6, head: 3.0, snout: 1.0, snoutH: 1.5, neckX: 2.6, neckY: 2.4, flexAmp: 0.3, liftAmp: 0.45, legW: 1.0),
+    Sp(id: "mouse", label: "생쥐", ear: .mouse, tail: .thinLong, len: 8.0, chest: 2.6, hip: 2.8, legF: 4.6, legH: 4.8, head: 2.4, snout: 2.6, snoutH: 0.8, neckX: 3.2, neckY: 2.4, flexAmp: 0.8, liftAmp: 0.8, legW: 0.8),
+    Sp(id: "frog", label: "개구리", kind: 4),
+    Sp(id: "duck", label: "오리", kind: 5),
+    Sp(id: "chick", label: "병아리", kind: 6),
+    Sp(id: "ghost", label: "유령", kind: 7),
+]
+
+func rot(_ p: NSPoint, _ c: NSPoint, _ a: CGFloat) -> NSPoint {
+    let dx = p.x - c.x, dy = p.y - c.y
+    return NSPoint(x: c.x + dx * cos(a) - dy * sin(a), y: c.y + dx * sin(a) + dy * cos(a))
+}
+func line2(_ a: NSPoint, _ b: NSPoint, _ w: CGFloat) { let q = NSBezierPath(); q.lineWidth = w; q.lineCapStyle = .round; q.move(to: a); q.line(to: b); q.stroke() }
+func oval(_ c: NSPoint, _ rx: CGFloat, _ ry: CGFloat) { NSBezierPath(ovalIn: NSRect(x: c.x - rx, y: c.y - ry, width: rx * 2, height: ry * 2)).fill() }
+
+func runner(_ sp: Sp, frame: Int, idle: Bool) -> NSImage {
     let size = NSSize(width: 31 * RUNNER_SCALE, height: 21.4 * RUNNER_SCALE)
     let img = NSImage(size: size, flipped: false) { _ in
         let t = NSAffineTransform(); t.scale(by: RUNNER_SCALE); t.concat()
-        let p = idle ? STAND : GALLOP[frame % GALLOP.count]
-        let L = CGFloat(p.lift), s = CGFloat(p.stretch)
         NSColor.black.setFill(); NSColor.black.setStroke()
-        func line(_ a: NSPoint, _ b: NSPoint, _ w: CGFloat) { let q = NSBezierPath(); q.lineWidth = w; q.lineCapStyle = .round; q.move(to: a); q.line(to: b); q.stroke() }
-        func leg(_ joint: NSPoint, _ a: (Double, Double)) {
+        if sp.waddle { penguin(frame: frame, idle: idle); return true }
+        if sp.fly > 0 { flyer(sp, frame: frame, idle: idle); return true }
+        if sp.kind == 4 { frog(frame: frame, idle: idle); return true }
+        if sp.kind == 5 || sp.kind == 6 { biped(chick: sp.kind == 6, frame: frame, idle: idle); return true }
+        if sp.kind == 7 { ghost(frame: frame, idle: idle); return true }
+        let k = idle ? STAND2 : GAL[frame % GAL.count]
+        let n = GAL.count, ph = 2 * CGFloat.pi * CGFloat(frame % n) / CGFloat(n)
+        let flex = CGFloat(k.flex * sp.flexAmp), lift = CGFloat(k.lift * sp.liftAmp) * 1.2
+        let pitch = CGFloat(k.pitch * sp.pitchAmp) * .pi / 180
+        let ground: CGFloat = 1.3
+        let airborne = sp.x.contains("wings") && !idle      // runs on air: the hooves never touch the ground
+        let y0 = ground + sp.legH * LEGK * 0.86 + 0.9 + lift + (idle ? 0.12 * sin(ph) : 0) + (airborne ? 1.2 : 0)
+        let c = NSPoint(x: 14.6, y: y0)
+        let half = CGFloat(sp.len) * BODYK / 2 * (1 + 0.17 * flex)
+        let arch = flex < 0 ? -flex * 1.5 : -flex * 0.3   // gathered: the back humps up; stretched: nearly flat
+        let H = rot(NSPoint(x: c.x - half, y: y0), c, pitch), S = rot(NSPoint(x: c.x + half, y: y0), c, pitch)
+        let M = rot(NSPoint(x: c.x, y: y0 + arch * 2), c, pitch)
+        func leg(_ joint: NSPoint, _ a: (Double, Double), _ len: CGFloat, _ near: Bool) {
             let a1 = CGFloat(a.0) * .pi / 180, a2 = CGFloat(a.1) * .pi / 180
-            let knee = NSPoint(x: joint.x + sin(a1) * 3.7, y: joint.y - cos(a1) * 3.7)
-            var foot = NSPoint(x: knee.x + sin(a2) * 3.9, y: knee.y - cos(a2) * 3.9)
-            foot.y = max(foot.y, 1.3)
-            line(joint, knee, 2.7); line(knee, foot, 2.0)
-            NSBezierPath(ovalIn: NSRect(x: foot.x - 0.8, y: foot.y - 0.95, width: 2.5, height: 1.75)).fill()  // paw
+            let u = len * 0.5, l = len * 0.52
+            let knee = NSPoint(x: joint.x + sin(a1) * u, y: joint.y - cos(a1) * u)
+            var foot = NSPoint(x: knee.x + sin(a2) * l, y: knee.y - cos(a2) * l)
+            foot.y = max(foot.y, airborne ? 1.1 : ground)
+            let w = CGFloat(sp.legW) * (near ? 1 : 0.86)
+            taper(joint, knee, 3.6 * w, 2.0 * w); taper(knee, foot, 2.0 * w, 1.35 * w)
+            oval(NSPoint(x: foot.x + 0.35, y: foot.y + 0.05), 1.0 * w, 0.72 * w)
         }
-        let shoulder = NSPoint(x: 19.0 + s * 0.3, y: 9.0 + L), hip = NSPoint(x: 11.0 - s, y: 9.2 + L)
-        leg(shoulder, p.ff); leg(hip, p.hf)
-        // tail: a husky carries it curled over the back, also at a run
-        let wag: CGFloat = idle ? (frame % 2 == 0 ? 0 : 1.2) : -s * 0.5
-        let tail = NSBezierPath(); tail.lineWidth = 3.1; tail.lineCapStyle = .round
-        tail.move(to: NSPoint(x: 9.0 - s, y: 13.0 + L))
-        tail.curve(to: NSPoint(x: 9.2 - s * 0.5 + wag, y: 18.3 + L * 0.6), controlPoint1: NSPoint(x: 3.4 - s, y: 12.2 + L), controlPoint2: NSPoint(x: 3.2 - s * 0.6 + wag, y: 19.0 + L * 0.6))
-        tail.stroke()
-        // body: short, deep chest, tucked waist
-        let f = s * 0.3
-        let body = NSBezierPath()
-        body.move(to: NSPoint(x: 7.8 - s, y: 11.0 + L))
-        body.curve(to: NSPoint(x: 12.0 - s * 0.5, y: 14.0 + L), controlPoint1: NSPoint(x: 7.8 - s, y: 13.0 + L), controlPoint2: NSPoint(x: 9.6 - s, y: 14.0 + L))
-        body.curve(to: NSPoint(x: 19.6 + f, y: 14.3 + L), controlPoint1: NSPoint(x: 14.6, y: 13.8 + L - s * 0.3), controlPoint2: NSPoint(x: 17.2, y: 13.9 + L - s * 0.3))
-        body.curve(to: NSPoint(x: 22.6 + f, y: 10.4 + L), controlPoint1: NSPoint(x: 21.6 + f, y: 14.3 + L), controlPoint2: NSPoint(x: 22.8 + f, y: 12.4 + L))
-        body.curve(to: NSPoint(x: 18.6 + f, y: 6.6 + L), controlPoint1: NSPoint(x: 22.4 + f, y: 8.2 + L), controlPoint2: NSPoint(x: 20.8 + f, y: 6.6 + L))
-        body.curve(to: NSPoint(x: 11.6 - s, y: 7.9 + L), controlPoint1: NSPoint(x: 16.2, y: 6.6 + L), controlPoint2: NSPoint(x: 14.0 - s * 0.5, y: 8.9 + L))
-        body.curve(to: NSPoint(x: 7.8 - s, y: 11.0 + L), controlPoint1: NSPoint(x: 9.4 - s, y: 7.2 + L), controlPoint2: NSPoint(x: 7.8 - s, y: 9.0 + L))
-        body.close(); body.fill()
-        // neck and a large head with a short muzzle
-        let hc = NSPoint(x: 24.0 + s * 0.4, y: 15.0 + L * 0.8 - (idle ? 0 : 0.4))
-        line(NSPoint(x: 20.6 + f, y: 12.0 + L), hc, 5.2)
-        NSBezierPath(ovalIn: NSRect(x: hc.x - 3.2, y: hc.y - 2.9, width: 6.4, height: 5.8)).fill()
-        let snout = NSBezierPath()
-        snout.move(to: NSPoint(x: hc.x + 1.4, y: hc.y + 1.2)); snout.line(to: NSPoint(x: hc.x + 4.7, y: hc.y - 0.3))
-        snout.curve(to: NSPoint(x: hc.x + 4.4, y: hc.y - 2.2), controlPoint1: NSPoint(x: hc.x + 5.5, y: hc.y - 0.7), controlPoint2: NSPoint(x: hc.x + 5.3, y: hc.y - 2.0))
-        snout.line(to: NSPoint(x: hc.x + 0.8, y: hc.y - 2.8)); snout.close(); snout.fill()
-        for (x0, tip, x1) in [(-3.0, -2.6, -0.6), (-1.0, 0.8, 2.1)] as [(CGFloat, CGFloat, CGFloat)] {  // pricked ears
-            let ear = NSBezierPath(); ear.move(to: NSPoint(x: hc.x + x0, y: hc.y + 1.2)); ear.line(to: NSPoint(x: hc.x + tip, y: hc.y + 5.3)); ear.line(to: NSPoint(x: hc.x + x1, y: hc.y + 1.9)); ear.close(); ear.fill()
+        let sh = NSPoint(x: S.x - 0.4, y: S.y - CGFloat(sp.chest) * 0.35), hp = NSPoint(x: H.x + 0.5, y: H.y - CGFloat(sp.hip) * 0.3)
+        // far legs
+        leg(sh, k.ff, CGFloat(sp.legF) * LEGK, false); leg(hp, k.hf, CGFloat(sp.legH) * LEGK, false)
+        // tail, trailing the body by a quarter stride
+        let lag = sin(ph - .pi / 2), tb = rot(NSPoint(x: c.x - half - 0.6, y: y0 + 0.8), c, pitch)
+        let tail = NSBezierPath(); tail.lineCapStyle = .round; tail.lineJoinStyle = .round
+        switch sp.tail {
+        case .curl:
+            tail.lineWidth = 3.1
+            tail.move(to: tb)
+            tail.curve(to: NSPoint(x: tb.x + 1.0 + flex * 0.4, y: tb.y + 5.2 - flex * 0.6), controlPoint1: NSPoint(x: tb.x - 5.0, y: tb.y + 0.4), controlPoint2: NSPoint(x: tb.x - 5.0 + lag, y: tb.y + 6.2))
+            tail.stroke()
+        case .long, .tuft, .thin:
+            tail.lineWidth = sp.tail == .tuft ? 1.4 : 1.6
+            let end = NSPoint(x: tb.x - 7.0 + abs(flex) * 0.6, y: tb.y + 1.2 - flex * 2.4 + lag * 1.6)
+            tail.move(to: tb)
+            tail.curve(to: end, controlPoint1: NSPoint(x: tb.x - 2.6, y: tb.y - 1.4 - lag), controlPoint2: NSPoint(x: end.x + 2.6, y: end.y - 2.2 + lag * 1.4))
+            tail.stroke()
+            if sp.tail == .tuft { oval(end, 1.3, 1.1) }
+        case .bushy:
+            let end = NSPoint(x: tb.x - 7.2, y: tb.y - 0.4 - flex * 1.6 + lag * 1.2)
+            let b = NSBezierPath()
+            b.move(to: NSPoint(x: tb.x + 0.4, y: tb.y + 1.2))
+            b.curve(to: end, controlPoint1: NSPoint(x: tb.x - 2.6, y: tb.y + 2.4 + lag * 0.6), controlPoint2: NSPoint(x: end.x + 2.4, y: end.y + 2.2))
+            b.curve(to: NSPoint(x: tb.x + 0.4, y: tb.y - 1.2), controlPoint1: NSPoint(x: end.x + 1.6, y: end.y - 1.8), controlPoint2: NSPoint(x: tb.x - 2.8, y: tb.y - 2.0 + lag * 0.6))
+            b.close(); b.fill()
+        case .stub:
+            oval(NSPoint(x: tb.x + 0.6, y: tb.y + 0.6), 1.5, 1.4)
+        case .none: break
+        case .curly:   // a pig's corkscrew
+            let cc = NSPoint(x: tb.x - 1.2, y: tb.y + 1.0 + lag * 0.3), t = NSBezierPath(); t.lineWidth = 0.85; t.lineCapStyle = .round
+            t.move(to: NSPoint(x: tb.x + 0.2, y: tb.y + 0.2))
+            t.appendArc(withCenter: cc, radius: 0.95, startAngle: -20, endAngle: 300, clockwise: false); t.stroke()
+        case .ringed, .hang:
+            let end = sp.tail == .hang ? NSPoint(x: tb.x - 5.6, y: tb.y - 3.6 + lag * 0.9 - flex * 0.6) : NSPoint(x: tb.x - 7.0, y: tb.y + 0.4 - flex * 1.4 + lag * 1.2)
+            let b = NSBezierPath()
+            b.move(to: NSPoint(x: tb.x + 0.4, y: tb.y + 1.2))
+            b.curve(to: end, controlPoint1: NSPoint(x: tb.x - 2.4, y: tb.y + 1.6 + lag * 0.5), controlPoint2: NSPoint(x: end.x + 2.0, y: end.y + 2.0))
+            b.curve(to: NSPoint(x: tb.x + 0.4, y: tb.y - 1.2), controlPoint1: NSPoint(x: end.x + 1.4, y: end.y - 1.6), controlPoint2: NSPoint(x: tb.x - 2.6, y: tb.y - 1.8 + lag * 0.5))
+            b.close(); b.fill()
+            if sp.tail == .ringed {   // dark and pale rings: two gaps cut across the tail
+                NSGraphicsContext.current?.compositingOperation = .clear
+                for t in [0.42, 0.7] as [CGFloat] {
+                    let m = NSPoint(x: tb.x + (end.x - tb.x) * t, y: tb.y + (end.y - tb.y) * t + 0.3)
+                    line2(NSPoint(x: m.x + 0.5, y: m.y + 2.2), NSPoint(x: m.x - 0.5, y: m.y - 2.2), 0.6)
+                }
+                NSGraphicsContext.current?.compositingOperation = .sourceOver
+            }
+        case .squirrel:   // a big plume carried up over the back, its tip curling forward
+            let t = NSBezierPath(); t.lineWidth = 3.6; t.lineCapStyle = .round
+            let tip = NSPoint(x: tb.x + 0.8 + lag * 0.4, y: tb.y + 8.6 - flex * 0.6)
+            t.move(to: tb); t.curve(to: tip, controlPoint1: NSPoint(x: tb.x - 5.2, y: tb.y + 1.4), controlPoint2: NSPoint(x: tb.x - 4.4 + lag * 0.5, y: tb.y + 9.4)); t.stroke()
+            oval(tip, 1.8, 1.6)
+        case .thinLong, .monkey:
+            tail.lineWidth = sp.tail == .monkey ? 1.1 : 0.75
+            let end = NSPoint(x: tb.x - 7.4, y: tb.y + (sp.tail == .monkey ? 4.2 : 0.2) - flex * 1.2 + lag * 1.4)
+            tail.move(to: tb)
+            tail.curve(to: end, controlPoint1: NSPoint(x: tb.x - 2.8, y: tb.y - 1.6 - lag), controlPoint2: NSPoint(x: end.x + 2.6, y: end.y - 2.4 + lag))
+            if sp.tail == .monkey { tail.appendArc(withCenter: NSPoint(x: end.x + 0.9, y: end.y), radius: 0.9, startAngle: 180, endAngle: 450, clockwise: false) }
+            tail.stroke()
+        case .flow:   // a horse's tail: a few strands streaming back
+            for (dy, w) in [(0.0, 1.5), (-0.9, 1.1), (0.8, 1.0)] as [(CGFloat, CGFloat)] {
+                let t = NSBezierPath(); t.lineWidth = w; t.lineCapStyle = .round
+                let end = NSPoint(x: tb.x - 6.4, y: tb.y - 2.2 + dy - flex * 1.2 + lag * 1.4)
+                t.move(to: NSPoint(x: tb.x, y: tb.y + 0.6)); t.curve(to: end, controlPoint1: NSPoint(x: tb.x - 2.4, y: tb.y + 1.4 + dy), controlPoint2: NSPoint(x: end.x + 2.6, y: end.y + 1.2 - lag)); t.stroke()
+            }
+        case .wag:     // a puppy's short tail, held up and wagging
+            line2(NSPoint(x: tb.x + 0.3, y: tb.y + 0.4), NSPoint(x: tb.x - 1.8 + lag * 0.9, y: tb.y + 3.0), 1.4)
+        case .short:
+            oval(NSPoint(x: tb.x - 0.4, y: tb.y + 1.2), 0.9, 1.3)
+        case .rope:    // an elephant's thin tail with a tuft
+            let e = NSPoint(x: tb.x - 1.6 + lag * 0.5, y: tb.y - 2.8)
+            line2(tb, e, 0.7); oval(e, 0.6, 0.8)
         }
-        leg(shoulder, p.fn); leg(hip, p.hn)
-        NSGraphicsContext.current?.compositingOperation = .clear
-        NSBezierPath(ovalIn: NSRect(x: hc.x + 0.5, y: hc.y - 0.1, width: 1.7, height: 1.7)).fill()  // eye
+        // wings beat once a stride, the downstroke as the body rises; the far wing goes behind the body
+        let wingFlap: CGFloat = idle ? -0.15 : sin(ph + 0.6)
+        let wingRoot = rot(NSPoint(x: c.x + half - 1.8, y: y0 + CGFloat(sp.chest) * 0.75), c, pitch)
+        if sp.x.contains("wings") { featherWing(NSPoint(x: wingRoot.x + 0.6, y: wingRoot.y + 0.3), flap: idle ? -0.15 : sin(ph + 0.25), span: idle ? 5.5 : 7.6, near: false) }
+        // torso: hip and chest masses joined along a spine that bends
+        let sp2 = NSBezierPath(); sp2.lineWidth = CGFloat(min(sp.chest, sp.hip)) * 2.15; sp2.lineCapStyle = .round
+        sp2.move(to: H); sp2.curve(to: S, controlPoint1: M, controlPoint2: M); sp2.stroke()
+        let sq = 1 - 0.09 * max(0, -lift)            // squashed a little on landing
+        oval(NSPoint(x: H.x + 0.3, y: H.y), CGFloat(sp.hip) * (2 - sq), CGFloat(sp.hip) * 0.95 * sq)
+        oval(NSPoint(x: S.x - 0.2, y: S.y - 0.25), CGFloat(sp.chest) * (2 - sq), CGFloat(sp.chest) * sq)
+        if sp.hump { oval(rot(NSPoint(x: S.x - 1.4, y: S.y + CGFloat(sp.chest) * 0.62), S, pitch), CGFloat(sp.chest) * 0.78, CGFloat(sp.chest) * 0.62) }
+        let br = CGFloat(min(sp.chest, sp.hip)) * 1.07
+        func along(_ t: CGFloat) -> NSPoint {   // a point on the spine, t = 0 at the hip and 1 at the shoulder
+            let u = 1 - t; return NSPoint(x: u * u * u * H.x + 3 * u * u * t * M.x + 3 * u * t * t * M.x + t * t * t * S.x, y: u * u * u * H.y + 3 * u * u * t * M.y + 3 * u * t * t * M.y + t * t * t * S.y)
+        }
+        if sp.x.contains("wool") {   // a white fleece with a scalloped outline: the puffs drawn dark, then hollowed out
+            leg(sh, k.fn, CGFloat(sp.legF) * LEGK, true); leg(hp, k.hn, CGFloat(sp.legH) * LEGK, true)   // under the fleece
+            var puffs: [(NSPoint, CGFloat)] = []
+            for i in 0...5 { let p = along(CGFloat(i) / 5); puffs.append((NSPoint(x: p.x, y: p.y + br * 0.8), br * 0.62)); puffs.append((NSPoint(x: p.x, y: p.y - br * 0.55), br * 0.58)) }
+            puffs.append((NSPoint(x: H.x - br * 0.8, y: H.y + 0.2), br * 0.62)); puffs.append((NSPoint(x: S.x + br * 0.55, y: S.y + br * 0.35), br * 0.6))
+            for (c3, r) in puffs { oval(c3, r, r) }
+            oval(along(0.5), br * 1.6, br * 1.1)
+            NSGraphicsContext.current?.compositingOperation = .clear
+            for (c3, r) in puffs { oval(c3, r - 0.75, r - 0.75) }
+            oval(along(0.5), br * 1.6 - 0.75, br * 1.1 - 0.75)
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+        }
+        if sp.x.contains("spikes") {  // a hedgehog's coat: spines over the back, pointing back
+            for i in 0..<10 {
+                let t = 0.05 + CGFloat(i) / 10, p = along(t), up = br * (0.6 + 0.4 * sin(t * .pi))
+                let b0 = NSPoint(x: p.x - 0.8, y: p.y + up * 0.7), b1 = NSPoint(x: p.x + 0.8, y: p.y + up * 0.75)
+                let tip = NSPoint(x: p.x - 2.6 - lag * 0.2, y: p.y + up + 2.8)
+                let sp3 = NSBezierPath(); sp3.move(to: b0); sp3.line(to: tip); sp3.line(to: b1); sp3.close(); sp3.fill()
+            }
+            for i in 0..<3 { let p = along(0.02); let sp3 = NSBezierPath(); sp3.move(to: NSPoint(x: p.x - 0.4, y: p.y + CGFloat(i) - 0.6)); sp3.line(to: NSPoint(x: p.x - br - 1.6, y: p.y + CGFloat(i) * 1.2 - 0.6)); sp3.line(to: NSPoint(x: p.x - 0.4, y: p.y + CGFloat(i) + 0.4)); sp3.close(); sp3.fill() }
+        }
+        if sp.x.contains("stripes") {
+            NSGraphicsContext.current?.compositingOperation = .clear
+            // a tiger's stripes, cut across the back
+            for t in [0.12, 0.32, 0.52, 0.72] as [CGFloat] { let p = along(t); line2(NSPoint(x: p.x - 0.4, y: p.y + br * 1.05), NSPoint(x: p.x + 0.4, y: p.y + br * 0.15), 0.55) }
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+        }
+        if sp.x.contains("wings") { featherWing(wingRoot, flap: wingFlap, span: idle ? 6.0 : 9.0, near: true) }
+        // neck and head, turned three-quarters toward the viewer so both eyes show; the head stays steadier than the body
+        let hpitch = pitch * 0.35, hr = CGFloat(sp.head) * HEADK
+        let hc = NSPoint(x: S.x + CGFloat(sp.neckX) * 0.62 * cos(pitch) - CGFloat(sp.neckY) * 0.4 * sin(pitch),
+                         y: S.y + CGFloat(sp.neckY) * 0.62 - lift * 0.3 + CGFloat(sp.neckX) * 0.8 * sin(pitch))
+        line2(NSPoint(x: S.x + 0.4, y: S.y + 0.4), hc, hr * 1.3)
+        if sp.mane {
+            lionMane(hc, hr, sweep: idle ? 0.05 : 0.32 + 0.12 * lag)
+        }
+        oval(hc, hr * 1.05, hr)
+        let sn = CGFloat(sp.snout), sh2 = CGFloat(sp.snoutH)
+        if sn > 1.6 {  // a dog's or fox's muzzle points forward and down from the turned face
+            let mc = rot(NSPoint(x: hc.x + hr * 0.62 + sn * 0.2, y: hc.y - hr * 0.45), hc, hpitch)
+            oval(mc, hr * 0.42 + sn * 0.24, sh2 * 0.7 + 0.45)
+            if sp.hump { oval(rot(NSPoint(x: mc.x + hr * 0.42 + sn * 0.2, y: mc.y + sh2 * 0.5), mc, 0), 0.85, 0.7) }  // a bear's nose at the tip
+        }
+        let back = (lift > 0.8 ? 0.35 : 0.0) + (idle ? 0 : 0.12)
+        func ear(_ base0: CGFloat, _ base1: CGFloat, _ tipX: CGFloat, _ tipY: CGFloat) {
+            let a = rot(NSPoint(x: hc.x + base0, y: hc.y + hr * 0.55), hc, hpitch), b = rot(NSPoint(x: hc.x + base1, y: hc.y + hr * 0.7), hc, hpitch)
+            let tip = rot(NSPoint(x: hc.x + tipX, y: hc.y + tipY), hc, hpitch + CGFloat(back))
+            let e = NSBezierPath(); e.move(to: a); e.line(to: tip); e.line(to: b); e.close(); e.fill()
+        }
+        switch sp.ear {
+        case .pricked: ear(-hr * 0.9, -hr * 0.15, -hr * 0.7, hr * 1.75); ear(hr * 0.05, hr * 0.85, hr * 0.55, hr * 1.75)
+        case .cat: ear(-hr * 0.95, -hr * 0.2, -hr * 0.72, hr * 1.55); ear(hr * 0.0, hr * 0.85, hr * 0.5, hr * 1.55)
+        case .round:
+            for dx in [-hr * 0.6, hr * 0.45] { let p = rot(NSPoint(x: hc.x + dx, y: hc.y + hr * 0.82), hc, hpitch); oval(p, hr * 0.38, hr * 0.38) }
+        case .long:
+            for (dx, sw) in [(-hr * 0.45, 0.1), (hr * 0.2, 0.3)] as [(CGFloat, CGFloat)] {
+                let base = rot(NSPoint(x: hc.x + dx, y: hc.y + hr * 0.6), hc, hpitch)
+                let ang = hpitch + CGFloat(back) * 1.6 + 0.3 + sw - lag * 0.15
+                let tip = NSPoint(x: base.x - sin(ang) * hr * 1.55, y: base.y + cos(ang) * hr * 1.55)
+                taper(base, tip, hr * 0.42, hr * 0.36)
+            }
+        case .tiny, .none: break
+        case .floppy:   // a puppy's ears hang and swing
+            // the far ear peeks over the crown; the near one hangs by the cheek, set off from the head by a thin gap
+            let fb = rot(NSPoint(x: hc.x + hr * 0.55, y: hc.y + hr * 0.75), hc, hpitch)
+            taper(fb, NSPoint(x: fb.x + hr * 0.35, y: fb.y - hr * 0.35), hr * 0.5, hr * 0.45)
+            let base = rot(NSPoint(x: hc.x - hr * 0.88, y: hc.y + hr * 0.55), hc, hpitch)
+            let tip = NSPoint(x: base.x - hr * 0.55 - lag * hr * 0.3, y: base.y - hr * 1.4 + (lift > 0.8 ? hr * 0.55 : 0))
+            NSGraphicsContext.current?.compositingOperation = .clear
+            taper(base, tip, hr * 0.5 + 1.0, hr * 0.66 + 1.0)
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            taper(base, tip, hr * 0.5, hr * 0.66)
+        case .side:     // round ears on the sides: big and fluffy on a koala
+            let big = sp.x.contains("koalanose")
+            for (dx, dy, r) in [(-hr * (big ? 0.95 : 1.0), hr * (big ? 0.55 : 0.15), hr * (big ? 0.62 : 0.36)), (hr * (big ? 0.8 : 0.95), hr * (big ? 0.6 : 0.2), hr * (big ? 0.5 : 0.3))] as [(CGFloat, CGFloat, CGFloat)] {
+                let ec = rot(NSPoint(x: hc.x + dx, y: hc.y + dy), hc, hpitch)
+                oval(ec, r, r)
+                if big { NSGraphicsContext.current?.compositingOperation = .clear; oval(NSPoint(x: ec.x + (dx < 0 ? -r * 0.12 : r * 0.12), y: ec.y + r * 0.05), r * 0.55, r * 0.55); NSGraphicsContext.current?.compositingOperation = .sourceOver }
+            }
+        case .mouse:
+            for (dx, r) in [(-hr * 0.55, hr * 0.62), (hr * 0.45, hr * 0.55)] as [(CGFloat, CGFloat)] { oval(rot(NSPoint(x: hc.x + dx, y: hc.y + hr * 1.0), hc, hpitch), r, r) }
+        case .horse: ear(-hr * 0.6, -hr * 0.15, -hr * 0.55, hr * 1.6); ear(hr * 0.0, hr * 0.4, hr * 0.15, hr * 1.55)
+        case .sheep:
+            for (dx, f) in [(-hr * 0.7, 1.0), (hr * 0.4, 0.8)] as [(CGFloat, CGFloat)] { let b = rot(NSPoint(x: hc.x + dx, y: hc.y + hr * 0.45), hc, hpitch); taper(b, NSPoint(x: b.x - hr * 0.9 * f, y: b.y - hr * 0.1 + lag * 0.2), hr * 0.42, hr * 0.32) }
+        case .pig: ear(-hr * 0.85, -hr * 0.15, hr * 0.1, hr * 1.35); ear(hr * 0.0, hr * 0.7, hr * 0.95, hr * 1.2)
+        }
+        // head features
+        if sp.x.contains("horn") {
+            let a = rot(NSPoint(x: hc.x + hr * 0.15, y: hc.y + hr * 0.8), hc, hpitch), b = rot(NSPoint(x: hc.x + hr * 0.65, y: hc.y + hr * 0.85), hc, hpitch), t = rot(NSPoint(x: hc.x + hr * 1.15, y: hc.y + hr * 2.25), hc, hpitch)
+            let h = NSBezierPath(); h.move(to: a); h.line(to: t); h.line(to: b); h.close(); h.fill()
+        }
+        if sp.x.contains("neckmane") {   // a mane down the back of the neck, streaming in the run
+            for i in 0..<5 {
+                let t = CGFloat(i) / 4, base = NSPoint(x: hc.x - hr * 0.75 + (S.x - 0.6 - hc.x + hr * 0.75) * t, y: hc.y + hr * 0.55 + (S.y + CGFloat(sp.chest) * 0.7 - hc.y - hr * 0.55) * t)
+                let tip = NSPoint(x: base.x - 2.2 - lag * 0.5, y: base.y + 0.4 - t * 0.6)
+                let m = NSBezierPath(); m.move(to: NSPoint(x: base.x + 0.7, y: base.y + 0.4)); m.line(to: tip); m.line(to: NSPoint(x: base.x + 0.3, y: base.y - 0.9)); m.close(); m.fill()
+            }
+        }
+        if sp.x.contains("antlers") {
+            for (dx, f) in [(-hr * 0.35, 1.0), (hr * 0.2, 0.85)] as [(CGFloat, CGFloat)] {
+                let b = rot(NSPoint(x: hc.x + dx, y: hc.y + hr * 0.8), hc, hpitch)
+                let top = NSPoint(x: b.x - hr * 0.7 * f, y: b.y + hr * 1.7 * f), m1 = NSPoint(x: b.x - hr * 0.25 * f, y: b.y + hr * 0.75 * f), m2 = NSPoint(x: b.x - hr * 0.5 * f, y: b.y + hr * 1.25 * f)
+                line2(b, top, 0.75); line2(m1, NSPoint(x: m1.x + hr * 0.55 * f, y: m1.y + hr * 0.45 * f), 0.65); line2(m2, NSPoint(x: m2.x + hr * 0.5 * f, y: m2.y + hr * 0.55 * f), 0.6)
+            }
+        }
+        if sp.x.contains("trunk") {     // an elephant: a big ear set apart from the head, and a swinging trunk
+            let ec = rot(NSPoint(x: hc.x - hr * 0.95, y: hc.y - hr * 0.05), hc, hpitch)
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(ovalIn: NSRect(x: ec.x - hr * 0.78, y: ec.y - hr * 0.98, width: hr * 1.56, height: hr * 1.96)).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            oval(ec, hr * 0.68 + lag * 0.15, hr * 0.88)
+            let r0 = rot(NSPoint(x: hc.x + hr * 0.8, y: hc.y - hr * 0.25), hc, hpitch), mid = NSPoint(x: r0.x + hr * 0.55, y: r0.y - hr * 0.8), tip = NSPoint(x: r0.x + hr * 0.6 + lag * hr * 0.35, y: r0.y - hr * 1.7)
+            taper(r0, mid, hr * 0.7, hr * 0.5); taper(mid, tip, hr * 0.5, hr * 0.38)
+        }
+        if sp.x.contains("pigsnout") {
+            let c2 = rot(NSPoint(x: hc.x + hr * 1.0, y: hc.y - hr * 0.3), hc, hpitch)
+            oval(c2, hr * 0.38, hr * 0.48)
+            NSGraphicsContext.current?.compositingOperation = .clear
+            for dy in [hr * 0.15, -hr * 0.17] { oval(NSPoint(x: c2.x + hr * 0.12, y: c2.y + dy), hr * 0.09, hr * 0.12) }
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+        }
+        if sp.x.contains("koalanose") { oval(rot(NSPoint(x: hc.x + hr * 1.0, y: hc.y - hr * 0.2), hc, hpitch), hr * 0.38, hr * 0.5) }
+        if sp.x.contains("panda") {     // pale face, dark eye patches
+            NSGraphicsContext.current?.compositingOperation = .clear
+            oval(hc, hr * 0.84, hr * 0.8)
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            for (x, y, r) in [(0.42, 0.06, 0.36), (-0.2, 0.1, 0.3)] as [(CGFloat, CGFloat, CGFloat)] {
+                let p = NSBezierPath(ovalIn: NSRect(x: -r * hr, y: -r * hr * 0.8, width: 2 * r * hr, height: 1.6 * r * hr))
+                let tr = NSAffineTransform(); tr.translateX(by: hc.x + hr * x, yBy: hc.y + hr * y); tr.rotate(byRadians: -0.5); p.transform(using: tr as AffineTransform); p.fill()
+            }
+            oval(NSPoint(x: hc.x + hr * 0.78, y: hc.y - hr * 0.32), hr * 0.17, hr * 0.13)
+        }
+        // near legs
+        if !sp.x.contains("wool") { leg(sh, k.fn, CGFloat(sp.legF) * LEGK, true); leg(hp, k.hn, CGFloat(sp.legH) * LEGK, true) }
+        eyes(NSPoint(x: hc.x + hr * CGFloat(sp.eyeDx), y: hc.y), hr, hpitch, CGFloat(sp.eyeK))
         return true
     }
     img.isTemplate = true
     return img
+}
+
+/** A penguin does not gallop: it waddles, rocking side to side with the flippers out. */
+func penguin(frame: Int, idle: Bool) {
+    let n = GAL.count, ph = 2 * CGFloat.pi * CGFloat(frame % n) / CGFloat(n)
+    let rock = idle ? 0.04 * sin(ph) : 0.2 * sin(ph), hop = idle ? 0 : 0.7 * abs(cos(ph))
+    let ground: CGFloat = 1.3
+    let base = NSPoint(x: 15.5, y: ground + 1.4 + hop)
+    let c = NSPoint(x: base.x, y: base.y + 7.4)
+    // feet: the one carrying the weight stays down
+    for (i, dx) in [(0, -1.8), (1, 1.6)] as [(Int, CGFloat)] {
+        let up = idle ? 0 : max(0, (i == 0 ? 1 : -1) * sin(ph)) * 1.2
+        oval(NSPoint(x: base.x + dx + 1.0, y: ground + 0.5 + up), 1.9, 0.75)
+    }
+    let body = NSBezierPath(ovalIn: NSRect(x: c.x - 5.0, y: c.y - 7.6, width: 10.0, height: 14.4))
+    let t = NSAffineTransform(); t.translateX(by: base.x, yBy: base.y); t.rotate(byRadians: rock); t.translateX(by: -base.x, yBy: -base.y)
+    body.transform(using: t as AffineTransform); body.fill()
+    let head = rot(NSPoint(x: c.x + 0.6, y: c.y + 7.2), base, rock)
+    oval(head, 3.7, 3.4)
+    let b1 = rot(NSPoint(x: c.x + 3.6, y: c.y + 7.6), base, rock), b2 = rot(NSPoint(x: c.x + 7.0, y: c.y + 6.5), base, rock), b3 = rot(NSPoint(x: c.x + 3.4, y: c.y + 6.0), base, rock)
+    let beak = NSBezierPath(); beak.move(to: b1); beak.line(to: b2); beak.line(to: b3); beak.close(); beak.fill()
+    for (sx, sgn) in [(-4.4, -1.0), (4.4, 1.0)] as [(CGFloat, CGFloat)] {   // flippers flap out
+        let root = rot(NSPoint(x: c.x + sx, y: c.y + 2.2), base, rock)
+        let ang = (idle ? 0.25 : 0.45 + 0.35 * sin(ph * 2)) * sgn
+        line2(root, NSPoint(x: root.x + sin(ang) * 5.2, y: root.y - cos(ang) * 5.2), 1.9)
+    }
+    NSGraphicsContext.current?.compositingOperation = .clear
+    let belly = NSBezierPath(ovalIn: NSRect(x: c.x - 1.2, y: c.y - 6.0, width: 5.4, height: 10.2))
+    belly.transform(using: t as AffineTransform); belly.fill()
+    eyes(head, 3.4, rock)
+}
+
+let HEADK: CGFloat = 1.42, LEGK: CGFloat = 0.72, BODYK: CGFloat = 0.74
+/** Two eyes on a face turned toward the viewer: the far one a little smaller, pupils looking where the animal runs. */
+func eyes(_ hc: NSPoint, _ hr: CGFloat, _ a: CGFloat, _ k: CGFloat = 1) {
+    let spots: [(CGFloat, CGFloat, CGFloat)] = [(0.42, 0.1, 0.33 * k), (-0.2, 0.14, 0.28 * k)]
+    NSGraphicsContext.current?.compositingOperation = .clear
+    for (x, y, r) in spots { oval(rot(NSPoint(x: hc.x + hr * x, y: hc.y + hr * y), hc, a), hr * r, hr * r * 1.1) }
+    NSGraphicsContext.current?.compositingOperation = .sourceOver
+    for (x, y, r) in spots { oval(rot(NSPoint(x: hc.x + hr * (x + r * 0.35), y: hc.y + hr * y), hc, a), hr * r * 0.5, hr * r * 0.6) }
+}
+func taper(_ a: NSPoint, _ b: NSPoint, _ w1: CGFloat, _ w2: CGFloat) {
+    let dx = b.x - a.x, dy = b.y - a.y, d = max(0.001, hypot(dx, dy)), nx = -dy / d, ny = dx / d
+    let p = NSBezierPath()
+    p.move(to: NSPoint(x: a.x + nx * w1 / 2, y: a.y + ny * w1 / 2)); p.line(to: NSPoint(x: b.x + nx * w2 / 2, y: b.y + ny * w2 / 2))
+    p.line(to: NSPoint(x: b.x - nx * w2 / 2, y: b.y - ny * w2 / 2)); p.line(to: NSPoint(x: a.x - nx * w1 / 2, y: a.y - ny * w1 / 2)); p.close(); p.fill()
+    oval(a, w1 / 2, w1 / 2); oval(b, w2 / 2, w2 / 2)
+}
+
+
+/** Birds and the dragon fly: the wings beat, the body rises on the downstroke, a level wing is seen end-on and looks short. */
+func flyer(_ sp: Sp, frame: Int, idle: Bool) {
+    let n = GAL.count, ph = 2 * CGFloat.pi * CGFloat(frame % n) / CGFloat(n)
+    let ground: CGFloat = 1.3, style = sp.fly
+    let flap: CGFloat = idle ? 0 : sin(ph)
+    let bob: CGFloat = idle ? 0.15 * sin(ph) : -flap * 1.1
+    let c = NSPoint(x: style == 3 ? 15.0 : 14.2, y: idle ? ground + 6.6 + bob : 10.0 + bob)
+    let tilt: CGFloat = idle ? 0 : 0.1
+    func R(_ x: CGFloat, _ y: CGFloat) -> NSPoint { rot(NSPoint(x: c.x + x, y: c.y + y), c, tilt) }
+    let shoulder = R(style == 2 ? -0.4 : 0.4, 1.4)
+    func wing(_ near: Bool) {
+        if idle {  // folded along the body
+            let w = NSBezierPath(); let a = R(1.6, 1.6), t = R(style == 3 ? -5.6 : -6.0, -0.2)
+            w.move(to: a); w.curve(to: t, controlPoint1: R(-1.0, 3.6), controlPoint2: R(-4.4, 2.6)); w.curve(to: a, controlPoint1: R(-3.6, -1.2), controlPoint2: R(-0.6, -0.6)); w.close(); w.fill()
+            return
+        }
+        let phase = near ? flap : sin(ph - 0.35)
+        let g = CGFloat.pi - phase * 1.2 + (near ? 0 : 0.1)
+        let span: CGFloat = (style == 2 ? 8.6 : style == 3 ? 8.8 : 9.8) * (0.42 + 0.58 * abs(phase)) * (near ? 1 : 0.85)
+        let u = NSPoint(x: cos(g), y: sin(g))
+        var v = NSPoint(x: -u.y, y: u.x); if v.x > 0 { v = NSPoint(x: -v.x, y: -v.y) }      // toward the tail
+        func P(_ along: CGFloat, _ back: CGFloat) -> NSPoint { NSPoint(x: shoulder.x + u.x * along + v.x * back, y: shoulder.y + u.y * along + v.y * back) }
+        let w = NSBezierPath()
+        switch style {
+        case 1:  // eagle: broad wing, fingered tip
+            w.move(to: P(0, -1.2)); w.curve(to: P(span, 0.2), controlPoint1: P(span * 0.4, -1.6), controlPoint2: P(span * 0.8, -0.8))
+            for k in 0..<4 { let a = span * (1 - 0.13 * CGFloat(k)); w.line(to: P(a - 0.4, 1.0 + 0.55 * CGFloat(k))); w.line(to: P(a - 1.0, 0.7 + 0.6 * CGFloat(k))) }
+            w.curve(to: P(-0.6, 3.0), controlPoint1: P(span * 0.4, 3.4), controlPoint2: P(span * 0.15, 3.4))
+        case 2:  // owl: round, soft wing
+            w.move(to: P(0, -1.0)); w.curve(to: P(span, 0.8), controlPoint1: P(span * 0.5, -1.8), controlPoint2: P(span * 1.05, -0.6))
+            w.curve(to: P(-0.4, 3.2), controlPoint1: P(span * 0.9, 3.4), controlPoint2: P(span * 0.3, 4.0))
+        default: // dragon: bat wing, membrane scalloped between finger spars
+            let tips: [(CGFloat, CGFloat)] = [(span, -0.2), (span * 0.82, 2.4), (span * 0.55, 3.6)]
+            w.move(to: P(0, -0.8)); w.line(to: P(span * 0.55, -1.0)); w.line(to: P(tips[0].0, tips[0].1))
+            var prev = tips[0]
+            for t in tips.dropFirst() { let mid = P((prev.0 + t.0) / 2 - 1.4, (prev.1 + t.1) / 2 - 0.2); w.curve(to: P(t.0, t.1), controlPoint1: mid, controlPoint2: mid); prev = t }
+            let mid = P(prev.0 / 2 - 1.0, 2.0); w.curve(to: P(-0.6, 2.6), controlPoint1: mid, controlPoint2: mid)
+            for t in tips { line2(P(0, 0.2), P(t.0, t.1), 0.75) }
+        }
+        w.close(); w.fill()
+    }
+    wing(false)
+    // tail
+    switch style {
+    case 1: let t = NSBezierPath(); t.move(to: R(-4.0, 1.2)); t.line(to: R(-8.4, 2.4)); t.line(to: R(-8.6, -1.2)); t.line(to: R(-4.0, -0.8)); t.close(); t.fill()
+    case 2: let t = NSBezierPath(); t.move(to: R(-3.6, 0.8)); t.line(to: R(-6.2, 0.6)); t.line(to: R(-5.8, -1.4)); t.line(to: R(-3.2, -1.2)); t.close(); t.fill()
+    default:
+        let wv = idle ? 0.3 * sin(ph) : 1.4 * sin(ph - 1.2)
+        let t = NSBezierPath(); t.lineCapStyle = .round
+        let end = R(-11.2, 0.4 + wv)
+        t.move(to: R(-3.0, 0.2)); t.curve(to: end, controlPoint1: R(-6.0, -1.6 - wv), controlPoint2: R(-8.6, 1.6 + wv))
+        t.lineWidth = 1.6; t.stroke()
+        let sp = NSBezierPath(); sp.move(to: NSPoint(x: end.x + 0.6, y: end.y)); sp.line(to: NSPoint(x: end.x - 1.4, y: end.y + 1.3)); sp.line(to: NSPoint(x: end.x - 1.0, y: end.y - 1.4)); sp.close(); sp.fill()
+    }
+    // legs: tucked in flight, standing at rest
+    for dx in [CGFloat(-1.2), 0.4] {
+        let hip = R(dx, -1.6)
+        let foot = idle ? NSPoint(x: hip.x + 0.3, y: ground + 0.3) : R(dx - 1.6, -3.6)
+        taper(hip, foot, style == 3 ? 1.8 : 1.2, 0.9)
+        if idle { oval(NSPoint(x: foot.x + 0.5, y: foot.y), 1.1, 0.5) }
+    }
+    // body
+    let (rx, ry): (CGFloat, CGFloat) = style == 2 ? (4.2, 3.9) : style == 3 ? (4.6, 2.9) : (4.8, 3.1)
+    let body = NSBezierPath(ovalIn: NSRect(x: c.x - rx, y: c.y - ry, width: rx * 2, height: ry * 2))
+    let tr = NSAffineTransform(); tr.translateX(by: c.x, yBy: c.y); tr.rotate(byRadians: tilt); tr.translateX(by: -c.x, yBy: -c.y)
+    body.transform(using: tr as AffineTransform); body.fill()
+    // head, three-quarters toward the viewer
+    let hr: CGFloat = style == 2 ? 3.6 : 3.3
+    let hc = style == 2 ? R(2.4, 3.6) : style == 3 ? R(5.4, 3.6) : R(4.6, 2.9)
+    if style == 3 { line2(R(3.0, 1.4), hc, 2.6) }
+    oval(hc, hr * 1.02, hr)
+    switch style {
+    case 1:  // hooked beak
+        let b = NSBezierPath(); b.move(to: NSPoint(x: hc.x + hr * 0.55, y: hc.y + hr * 0.15)); b.line(to: NSPoint(x: hc.x + hr * 1.45, y: hc.y - hr * 0.05))
+        b.curve(to: NSPoint(x: hc.x + hr * 1.05, y: hc.y - hr * 0.7), controlPoint1: NSPoint(x: hc.x + hr * 1.7, y: hc.y - hr * 0.35), controlPoint2: NSPoint(x: hc.x + hr * 1.4, y: hc.y - hr * 0.75))
+        b.line(to: NSPoint(x: hc.x + hr * 0.5, y: hc.y - hr * 0.5)); b.close(); b.fill()
+    case 2:  // ear tufts and a small beak
+        for (x0, tip, x1) in [(-0.85, -0.85, -0.25), (0.15, 0.75, 0.8)] as [(CGFloat, CGFloat, CGFloat)] {
+            let e = NSBezierPath(); e.move(to: NSPoint(x: hc.x + hr * x0, y: hc.y + hr * 0.6)); e.line(to: NSPoint(x: hc.x + hr * tip, y: hc.y + hr * 1.45)); e.line(to: NSPoint(x: hc.x + hr * x1, y: hc.y + hr * 0.75)); e.close(); e.fill()
+        }
+    default: // snout and two little horns
+        oval(NSPoint(x: hc.x + hr * 0.95, y: hc.y - hr * 0.35), hr * 0.75, hr * 0.5)
+        for (x0, tip) in [(-0.6, -1.05), (0.1, -0.2)] as [(CGFloat, CGFloat)] {
+            let h = NSBezierPath(); h.move(to: NSPoint(x: hc.x + hr * x0, y: hc.y + hr * 0.7)); h.line(to: NSPoint(x: hc.x + hr * tip, y: hc.y + hr * 1.5)); h.line(to: NSPoint(x: hc.x + hr * (x0 + 0.4), y: hc.y + hr * 0.8)); h.close(); h.fill()
+        }
+    }
+    wing(true)
+    if style == 2 {  // an owl's face is all eyes
+        NSGraphicsContext.current?.compositingOperation = .clear
+        for x in [-0.42, 0.42] as [CGFloat] { oval(NSPoint(x: hc.x + hr * x, y: hc.y + hr * 0.05), hr * 0.38, hr * 0.4) }
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+        for x in [-0.42, 0.42] as [CGFloat] { oval(NSPoint(x: hc.x + hr * (x + 0.1), y: hc.y + hr * 0.02), hr * 0.18, hr * 0.2) }
+        let b = NSBezierPath(); b.move(to: NSPoint(x: hc.x - hr * 0.12, y: hc.y - hr * 0.35)); b.line(to: NSPoint(x: hc.x + hr * 0.12, y: hc.y - hr * 0.35)); b.line(to: NSPoint(x: hc.x, y: hc.y - hr * 0.7)); b.close(); b.fill()
+    } else {
+        eyes(hc, hr, 0)
+    }
+}
+
+/** A lion's mane drawn as fur: leaf-shaped locks of uneven length, longest over the crown and nape, their tips curling back with the run. */
+func lionMane(_ hc: NSPoint, _ hr: CGFloat, sweep: CGFloat) {
+    let c = NSPoint(x: hc.x - hr * 0.3, y: hc.y - hr * 0.05), n = 13
+    let jag: [CGFloat] = [1.0, 0.86, 0.96, 0.8, 1.0, 0.9, 0.78]   // fixed, so the locks do not flicker between frames
+    oval(c, hr * 1.5, hr * 1.45)
+    for i in 0..<n {
+        let a = 2 * CGFloat.pi * CGFloat(i) / CGFloat(n) + 0.1
+        let back = (1 - cos(a)) / 2                                 // 0 at the front, 1 at the back
+        let len = hr * (1.95 + 0.6 * back) * jag[i % jag.count]
+        let u = NSPoint(x: cos(a), y: sin(a)), w = NSPoint(x: -sin(a), y: cos(a))
+        let wd = hr * 0.5, base = hr * 1.25
+        func at(_ along: CGFloat, _ side: CGFloat) -> NSPoint { NSPoint(x: c.x + u.x * along + w.x * side, y: c.y + u.y * along + w.y * side) }
+        // the tip curls toward the tail, more when running and more for the locks at the back
+        var tip = at(len, 0); tip.x -= sweep * hr * (0.4 + 0.7 * back); tip.y -= sweep * hr * 0.2
+        let l = NSBezierPath()
+        l.move(to: at(base, wd))
+        l.curve(to: tip, controlPoint1: at(len * 0.72, wd * 1.15), controlPoint2: NSPoint(x: (tip.x + at(len * 0.9, wd * 0.5).x) / 2, y: (tip.y + at(len * 0.9, wd * 0.5).y) / 2))
+        l.curve(to: at(base, -wd), controlPoint1: at(len * 0.85, -wd * 0.3), controlPoint2: at(len * 0.6, -wd * 1.0))
+        l.close(); l.fill()
+    }
+}
+
+/** A feathered wing seen from the side: swept back from the root, longest feathers at the tip, foreshortened when level. */
+func featherWing(_ root: NSPoint, flap: CGFloat, span full: CGFloat, near: Bool) {
+    let g = CGFloat.pi - flap * 1.05 - 0.15
+    let span = full * (0.45 + 0.55 * abs(flap)) * (near ? 1 : 0.85)
+    let u = NSPoint(x: cos(g), y: sin(g))
+    var v = NSPoint(x: -u.y, y: u.x); if v.x > 0 { v = NSPoint(x: -v.x, y: -v.y) }    // toward the tail
+    func P(_ along: CGFloat, _ back: CGFloat) -> NSPoint { NSPoint(x: root.x + u.x * along + v.x * back, y: root.y + u.y * along + v.y * back) }
+    let w = NSBezierPath()
+    w.move(to: P(0, -1.0)); w.curve(to: P(span, 0.4), controlPoint1: P(span * 0.45, -1.5), controlPoint2: P(span * 0.85, -0.7))
+    // rounded feather ends along the trailing edge
+    for k in 0..<4 {
+        let a = span * (1 - 0.2 * CGFloat(k)), b = span * (1 - 0.2 * CGFloat(k + 1))
+        let depth = 1.4 + 0.45 * CGFloat(k)
+        w.curve(to: P(b, depth + 0.5), controlPoint1: P(a - 0.1, depth + 1.0), controlPoint2: P(b + 0.6, depth + 1.3))
+    }
+    w.curve(to: P(-0.4, 2.2), controlPoint1: P(span * 0.15, 2.9), controlPoint2: P(0.2, 2.8))
+    w.close()
+    if near {   // a thin gap around the near wing, so it stays apart from the body on the downstroke
+        NSGraphicsContext.current?.compositingOperation = .clear
+        w.lineWidth = 1.1; w.lineJoinStyle = .round; w.stroke()
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+    }
+    w.fill()
+    if near {   // a line of coverts, cut in, so the near wing reads apart from the body
+        NSGraphicsContext.current?.compositingOperation = .clear
+        let l = NSBezierPath(); l.lineWidth = 0.5; l.lineCapStyle = .round
+        l.move(to: P(span * 0.1, 0.9)); l.curve(to: P(span * 0.7, 0.9), controlPoint1: P(span * 0.3, 1.5), controlPoint2: P(span * 0.5, 1.4)); l.stroke()
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+    }
+}
+
+/** A frog hops: it crouches, kicks its long hind legs straight out behind, flies in an arc and lands on its front feet. */
+func frog(frame: Int, idle: Bool) {
+    let n = GAL.count, i = frame % n, ground: CGFloat = 1.3
+    // phase of the hop: 0 crouched, 1 fully stretched in the air
+    let ext: [CGFloat] = [0.0, 0.7, 1.0, 0.85, 0.55, 0.3, 0.1, 0.0]
+    let hgt: [CGFloat] = [0.0, 1.6, 4.2, 5.4, 4.8, 2.8, 0.6, 0.0]
+    let tilt: [CGFloat] = [0.0, 0.38, 0.3, 0.12, -0.08, -0.25, -0.3, -0.05]
+    let e = idle ? 0 : ext[i], h = idle ? 0.15 * sin(CGFloat(frame) * 0.8) : hgt[i], a = idle ? 0 : tilt[i]
+    let c = NSPoint(x: 15.0, y: ground + 3.4 + h)
+    func R(_ x: CGFloat, _ y: CGFloat) -> NSPoint { rot(NSPoint(x: c.x + x, y: c.y + y), c, a) }
+    let hip = R(-3.4, -0.6)
+    // hind leg: folded in a Z when crouched, a straight line back when stretched
+    for (near, w) in [(false, 0.85), (true, 1.0)] as [(Bool, CGFloat)] {
+        let dz: CGFloat = near ? 0 : 0.5
+        let knee = NSPoint(x: hip.x + 2.6 * (1 - e) - 3.6 * e, y: hip.y - 1.0 * (1 - e) - 1.4 * e + dz)
+        var foot = NSPoint(x: knee.x - 3.4 * (1 - e) - 3.8 * e, y: max(ground, knee.y - 1.6 * (1 - e) - 1.6 * e))
+        if h > 0.5 { foot.y = knee.y - 1.6 * (1 - e) - 1.4 * e }
+        taper(hip, knee, 2.4 * w, 1.6 * w); taper(knee, foot, 1.6 * w, 1.0 * w)
+        oval(NSPoint(x: foot.x - 0.6, y: foot.y), 1.4 * w, 0.6)
+    }
+    // body: a wide, low pear, with the head part of it
+    oval(R(-0.6, 0), 4.6, 3.0)
+    oval(R(2.6, 0.8), 3.4, 2.6)
+    // front legs reach forward when landing
+    let sh = R(2.4, -1.2), reach = idle ? 0 : max(0, -a) * 2.4 + (i == 0 || i == 7 ? 0.4 : 0)
+    for (near, w) in [(false, 0.8), (true, 1.0)] as [(Bool, CGFloat)] {
+        let foot = NSPoint(x: sh.x + 0.8 + reach + (near ? 0 : -0.6), y: max(ground, sh.y - 2.8 + (h > 1.2 ? 1.2 : 0)))
+        taper(sh, foot, 1.5 * w, 1.0 * w); oval(NSPoint(x: foot.x + 0.4, y: foot.y), 1.0 * w, 0.5)
+    }
+    // bulging eyes on top of the head
+    let e1 = R(3.6, 3.0), e2 = R(1.4, 3.1)
+    oval(e1, 1.55, 1.5); oval(e2, 1.35, 1.35)
+    NSGraphicsContext.current?.compositingOperation = .clear
+    oval(e1, 1.0, 1.0); oval(e2, 0.85, 0.85)
+    line2(R(3.0, -0.2), R(5.4, 0.6), 0.45)     // a wide mouth
+    NSGraphicsContext.current?.compositingOperation = .sourceOver
+    oval(NSPoint(x: e1.x + 0.35, y: e1.y), 0.5, 0.55); oval(NSPoint(x: e2.x + 0.3, y: e2.y), 0.42, 0.48)
+}
+
+/** Two legs: a duck waddles with its tail up and a flat bill; a chick is a round ball on quick little legs, flapping its stubs. */
+func biped(chick: Bool, frame: Int, idle: Bool) {
+    let n = GAL.count, ph = 2 * CGFloat.pi * CGFloat(frame % n) / CGFloat(n)
+    let ground: CGFloat = 1.3
+    let bob: CGFloat = idle ? 0.15 * sin(ph) : abs(sin(ph)) * (chick ? 1.1 : 0.7)
+    let roll: CGFloat = idle ? 0 : (chick ? 0.08 : 0.12) * sin(ph)
+    let legLen: CGFloat = chick ? 4.2 : 3.8
+    let c = NSPoint(x: 14.6, y: ground + legLen + (chick ? 4.0 : 3.0) + bob)
+    func R(_ x: CGFloat, _ y: CGFloat) -> NSPoint { rot(NSPoint(x: c.x + x, y: c.y + y), c, roll) }
+    // legs: one in front, one behind, swapping each half stride
+    for k in 0..<2 {
+        let sw = idle ? 0 : sin(ph + CGFloat(k) * .pi) * (chick ? 0.7 : 0.5)
+        let hip = R(chick ? 0.2 : 0.6, chick ? -3.6 : -2.4)
+        let foot = NSPoint(x: hip.x + sin(sw) * legLen, y: max(ground, hip.y - cos(sw) * legLen + (idle ? 0 : max(0, -cos(ph + CGFloat(k) * .pi)) * 1.2)))
+        line2(hip, foot, chick ? 0.75 : 1.0)
+        if chick { line2(foot, NSPoint(x: foot.x + 1.4, y: foot.y), 0.6); line2(foot, NSPoint(x: foot.x + 1.0, y: foot.y + 0.7), 0.5) }
+        else { let w = NSBezierPath(); w.move(to: NSPoint(x: foot.x - 0.4, y: foot.y + 0.3)); w.line(to: NSPoint(x: foot.x + 2.2, y: foot.y + 0.1)); w.line(to: NSPoint(x: foot.x + 1.8, y: foot.y - 0.6)); w.line(to: NSPoint(x: foot.x - 0.6, y: foot.y - 0.4)); w.close(); w.fill() }
+    }
+    var hc: NSPoint, hr: CGFloat
+    if chick {
+        oval(c, 5.0, 4.8)                                 // the ball
+        hc = R(1.6, 2.4); hr = 3.2
+        oval(hc, hr, hr)
+        // a tuft on top
+        line2(R(1.0, 5.4), R(0.2, 7.0), 0.7); line2(R(1.6, 5.5), R(1.9, 7.1), 0.7)
+        // a beak
+        let b = NSBezierPath(); b.move(to: R(4.4, 3.0)); b.line(to: R(6.6, 2.3)); b.line(to: R(4.4, 1.6)); b.close(); b.fill()
+        // stubby wings flap fast
+        let fl = idle ? 0.2 : 0.5 + 0.5 * sin(ph * 2)
+        let wr = R(-2.4, 0.6)
+        let w = NSBezierPath(); w.move(to: NSPoint(x: wr.x + 1.2, y: wr.y + 0.6)); w.line(to: NSPoint(x: wr.x - 2.6, y: wr.y + 0.4 + fl * 2.6)); w.line(to: NSPoint(x: wr.x - 1.6, y: wr.y - 1.0)); w.close(); w.fill()
+    } else {
+        // body: a boat with the tail turned up
+        let b = NSBezierPath()
+        b.move(to: R(-6.4, 2.2))
+        b.curve(to: R(3.8, 0.4), controlPoint1: R(-4.0, 1.2), controlPoint2: R(0.6, 2.6))
+        b.curve(to: R(-1.0, -3.4), controlPoint1: R(5.4, -2.0), controlPoint2: R(2.4, -3.6))
+        b.curve(to: R(-6.4, 2.2), controlPoint1: R(-4.6, -3.2), controlPoint2: R(-5.6, -1.0))
+        b.close(); b.fill()
+        line2(R(2.6, 0.6), R(3.4, 4.0), 2.6)              // neck
+        hc = R(3.6, 5.0); hr = 2.6
+        oval(hc, hr, hr * 0.95)
+        // a flat, rounded bill
+        let bl = NSBezierPath(roundedRect: NSRect(x: hc.x + hr * 0.6, y: hc.y - hr * 0.6, width: hr * 1.25, height: hr * 0.55), xRadius: hr * 0.27, yRadius: hr * 0.27); bl.fill()
+        // a wing drawn as a cut line on the side, lifting a little each step
+        NSGraphicsContext.current?.compositingOperation = .clear
+        let w = NSBezierPath(); w.lineWidth = 0.55; w.lineCapStyle = .round
+        w.move(to: R(1.8, 0.6)); w.curve(to: R(-4.2, 0.6 + (idle ? 0 : 0.8 * max(0, sin(ph)))), controlPoint1: R(0.4, -2.2), controlPoint2: R(-3.0, -1.6)); w.stroke()
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+    }
+    eyes(hc, hr, roll, chick ? 0.9 : 0.85)
+}
+
+/** The ghost, for a member with no data: a see-through sheet that floats instead of running, its hem rippling. */
+func ghost(frame: Int, idle: Bool) {
+    let n = GAL.count, ph = 2 * CGFloat.pi * CGFloat(frame % n) / CGFloat(n)
+    guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+    ctx.saveGState(); ctx.setAlpha(0.62); ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+    let bob: CGFloat = idle ? 0.5 * sin(ph) : 1.0 * sin(ph)
+    let lean: CGFloat = idle ? 0 : -0.22                    // leaning into the direction it drifts
+    let c = NSPoint(x: 16.0, y: 11.0 + bob)
+    func R(_ x: CGFloat, _ y: CGFloat) -> NSPoint { rot(NSPoint(x: c.x + x, y: c.y + y), c, lean) }
+    let p = NSBezierPath()
+    p.move(to: R(-5.2, 0))
+    p.curve(to: R(5.2, 0), controlPoint1: R(-5.2, 8.2), controlPoint2: R(5.2, 8.2))   // the dome of the head
+    p.line(to: R(5.0, -5.2))
+    // the hem: scallops that travel backward, and a wisp trailing behind
+    let waves = 4, w0 = R(5.0, -5.2)
+    var prev = w0
+    for k in 1...waves {
+        let x = 5.0 - 10.6 * CGFloat(k) / CGFloat(waves), dip = -6.6 - 0.9 * sin(ph * 1.0 + CGFloat(k) * 1.4)
+        let to = R(x, -5.2 - (k == waves ? 1.6 : 0))
+        let mid = R((x + 5.0 - 10.6 * CGFloat(k - 1) / CGFloat(waves)) / 2, dip)
+        p.curve(to: to, controlPoint1: NSPoint(x: (prev.x + mid.x) / 2, y: mid.y), controlPoint2: NSPoint(x: (to.x + mid.x) / 2, y: mid.y))
+        prev = to
+    }
+    let wisp = R(-8.6 - (idle ? 0 : 0.8 * sin(ph)), -5.6 + 1.2 * sin(ph + 1))
+    p.curve(to: wisp, controlPoint1: R(-6.0, -6.6), controlPoint2: R(-7.4, -6.4))
+    p.curve(to: R(-5.2, 0), controlPoint1: R(-7.0, -4.4), controlPoint2: R(-5.6, -2.6))
+    p.close(); p.fill()
+    // little arms reaching forward
+    let arm = idle ? 0 : 0.5 * sin(ph * 2)
+    line2(R(4.4, -0.6), R(7.0, 0.6 + arm), 1.5); line2(R(-4.0, -0.4), R(-5.8, 0.8 - arm), 1.3)
+    // hollow eyes and a small round mouth
+    NSGraphicsContext.current?.compositingOperation = .clear
+    oval(R(2.0, 3.2), 1.05, 1.35); oval(R(-0.6, 3.3), 0.9, 1.2)
+    oval(R(1.0, 0.9), 0.6, 0.75)
+    NSGraphicsContext.current?.compositingOperation = .sourceOver
+    ctx.endTransparencyLayer(); ctx.restoreGState()
 }
 
 // ---------- text ----------
@@ -2257,6 +2889,9 @@ struct DashboardView: View {
                     }.padding(.horizontal, 10).padding(.vertical, 7).background(RoundedRectangle(cornerRadius: 8).fill(pal.tile)).opacity(cleaning && fixed ? 0.6 : 1)
                     if cleaning && !fixed {
                         Pressable(radius: 8, action: { if on { picked.remove(it.id) } else { picked.insert(it.id) } }) { row }.help(it.name)
+                    } else if !cleaning, let sid = model.leftoverSession[it.id] {
+                        Pressable(radius: 8, action: { resumeSession(sid, fallbackDir: model.leftoverPids[it.id]?.first.flatMap { procCwd($0.pid) }) }) { row }
+                            .help("\(it.name): 누르면 이 프로세스를 띄운 세션을 새 터미널에서 다시 엽니다. 무엇을 하던 세션인지 보고 끌지 정하십시오")
                     } else {
                         row.help(cleaning && fixed ? "앱, 가상 머신, 데이터베이스는 다른 작업이 쓰고 있을 수 있어 여기서 끄지 않습니다. 그 프로그램에서 직접 끄십시오" : it.name)
                     }
@@ -2817,11 +3452,11 @@ final class App: NSObject {
         // RunCat's rule, on the same thing RunCat measures: the whole machine. A runner that strolls while the machine is
         // flat out, because the agent sessions' own share happens to be small, reads as wrong.
         let load = min(100, max(0, (model.sysCpu ?? 0) * 100))
-        item.button?.image = runner(frame: frame, idle: load < 5)
+        item.button?.image = runner(runnerSpecies(model.snap?.animal?.grade), frame: frame, idle: load < 5)
         frame += 1
         // RunCat's own curve: one stride takes (100 - load) / 60 seconds, so the pace climbs steeply as the machine fills up.
         // The stride is spread over this runner's poses, and a frame never comes faster than a display shows it.
-        let gap = load < 5 ? 0.8 : max(1.0 / 60, (100 - load) / 60 / Double(GALLOP.count))
+        let gap = load < 5 ? 0.8 : max(1.0 / 60, (100 - load) / 60 / Double(GAL.count))
         DispatchQueue.main.asyncAfter(deadline: .now() + gap) { [weak self] in self?.animate() }
     }
     func poll() {
@@ -2947,20 +3582,21 @@ if let prefix = selftest {
             fitCheck("STATUS")
             render(PanelView(model: main.model, prefs: Prefs(), nav: Nav(), book: RuleBook(), still: true), "\(prefix)-panel-dark.png")
             render(PanelView(model: main.model, prefs: Prefs(), nav: Nav(), book: RuleBook(), still: true), "\(prefix)-panel-light.png", dark: false)
-            let n = GALLOP.count + 2, k: CGFloat = 8
-            let RW = runner(frame: 0, idle: true).size.width, RH = runner(frame: 0, idle: true).size.height
-            let sheet = NSImage(size: NSSize(width: RW * k * CGFloat(n), height: RH * k * 2), flipped: false) { _ in
-                NSColor(white: 0.93, alpha: 1).setFill(); NSRect(x: 0, y: RH * k, width: RW * k * CGFloat(n), height: RH * k).fill()
-                NSColor(white: 0.14, alpha: 1).setFill(); NSRect(x: 0, y: 0, width: RW * k * CGFloat(n), height: RH * k).fill()
-                for row in 0..<2 {
+            // every species: the eight running frames and one at rest, white on the dark bar
+            let n = GAL.count + 1, k: CGFloat = 4, rows = SPECIES.count
+            let RW = runner(SPECIES[0], frame: 0, idle: true).size.width, RH = runner(SPECIES[0], frame: 0, idle: true).size.height
+            let sheet = NSImage(size: NSSize(width: RW * k * CGFloat(n), height: RH * k * CGFloat(rows)), flipped: false) { _ in
+                NSColor(white: 0.14, alpha: 1).setFill(); NSRect(x: 0, y: 0, width: RW * k * CGFloat(n), height: RH * k * CGFloat(rows)).fill()
+                for (row, sp) in SPECIES.enumerated() {
                     for i in 0..<n {
-                        let im = runner(frame: i < GALLOP.count ? i : i - GALLOP.count, idle: i >= GALLOP.count)
-                        let tinted = NSImage(size: im.size, flipped: false) { r in im.draw(in: r); (row == 0 ? NSColor.white : NSColor.black).set(); r.fill(using: .sourceAtop); return true }
-                        tinted.draw(in: NSRect(x: CGFloat(i) * RW * k, y: row == 0 ? 0 : RH * k, width: RW * k, height: RH * k))
+                        let im = runner(sp, frame: i % GAL.count, idle: i == GAL.count)
+                        let tinted = NSImage(size: im.size, flipped: false) { r in im.draw(in: r); NSColor.white.set(); r.fill(using: .sourceAtop); return true }
+                        tinted.draw(in: NSRect(x: CGFloat(i) * RW * k, y: CGFloat(rows - 1 - row) * RH * k, width: RW * k, height: RH * k))
                     }
                 }
                 return true
             }
+            print("RUNNER species \(SPECIES.count) | drawn now: \(runnerSpecies(main.model.snap?.animal?.grade).id) (grade \(main.model.snap?.animal?.grade ?? "none"))")
             png(sheet, "\(prefix)-runner.png")
             liveShot(main.hosting, "\(prefix)-panel-live.png")
             if let b = main.item.button { liveShot(b, "\(prefix)-item-live.png", forceDark: true) }  // the menu bar item itself, warning mark included
@@ -3110,6 +3746,8 @@ func dashboardTest(_ prefix: String) {
         print("DASHBOARD history samples \(m.samples.count) per-session \(m.hist.values.map { $0.count }.sorted())")
         if let v = main.dash?.contentView { liveShot(v, "\(prefix)-dashboard-live.png") }
         print("LEFTOVER lines \(m.leftoverItems.count) | never cleaned (apps, virtual machines, databases): \(m.leftoverItems.filter { m.leftoverShared.contains($0.id) }.map { $0.name }.joined(separator: ", "))")
+        // which session each line would reopen, and the folder that session worked in (the id itself is not printed)
+        print("LEFTOVER sessions " + m.leftoverItems.map { it in "\(it.name)=" + (m.leftoverSession[it.id].map { sessionCwd($0).map { ($0 as NSString).lastPathComponent } ?? "no transcript" } ?? "none") }.joined(separator: ", "))
         if let target = selftestClean {
             let hit = m.leftoverItems.first { $0.name == target }
             print("CLEAN target '\(target)': \(hit.map { "\($0.n) process(es)" } ?? "not listed") | protected \(m.leftoverShared.contains(target))")
