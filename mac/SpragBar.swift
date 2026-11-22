@@ -3331,13 +3331,32 @@ struct PanelView: View {
 
 // ---------- the menu bar item and its window ----------
 final class FloatPanel: NSPanel { override var canBecomeKey: Bool { true } }
-func dockIcon() -> NSImage {
-    NSImage(size: NSSize(width: 512, height: 512), flipped: false) { r in
-        NSColor(red: 0.10, green: 0.10, blue: 0.098, alpha: 1).setFill()
-        NSBezierPath(roundedRect: r.insetBy(dx: 44, dy: 44), xRadius: 96, yRadius: 96).fill()
-        let glyph = NSAttributedString(string: "✇", attributes: [.font: NSFont.systemFont(ofSize: 280, weight: .bold), .foregroundColor: NSColor(red: 0.85, green: 0.35, blue: 0.15, alpha: 1)])
-        let size = glyph.size()
-        glyph.draw(at: NSPoint(x: r.midX - size.width / 2, y: r.midY - size.height / 2))
+/**
+ * The Dock icon while the dashboard is open: the member's town animal, white on a coral rounded square, the same
+ * species that runs in the menu bar. It is one still frame, redrawn only when the grade changes; a running Dock icon
+ * would spend CPU and pull the eye away from the dashboard. Drawn on the macOS icon grid (an 824 square in 1024).
+ */
+func dockIcon(_ grade: String?) -> NSImage {
+    let sp = runnerSpecies(grade)
+    // a frame that reads as that animal at rest in motion: wings up for fliers, mid-leap for the frog, a stride otherwise
+    let frame = sp.fly > 0 || sp.x.contains("wings") ? 2 : sp.kind == 4 ? 2 : sp.kind == 7 ? 0 : sp.kind == 5 || sp.kind == 6 ? 1 : 7
+    let still = runner(sp, frame: frame, idle: false)
+    return NSImage(size: NSSize(width: 512, height: 512), flipped: false) { r in
+        let k = r.width / 1024
+        let body = NSRect(x: 100 * k, y: 100 * k, width: 824 * k, height: 824 * k)
+        let shape = NSBezierPath(roundedRect: body, xRadius: 185 * k, yRadius: 185 * k)
+        let top = NSColor(srgbRed: 0.941, green: 0.573, blue: 0.416, alpha: 1), bottom = NSColor(srgbRed: 0.788, green: 0.341, blue: 0.235, alpha: 1)
+        NSGraphicsContext.saveGraphicsState()
+        let sh = NSShadow(); sh.shadowColor = NSColor.black.withAlphaComponent(0.28); sh.shadowBlurRadius = 22 * k; sh.shadowOffset = NSSize(width: 0, height: -10 * k); sh.set()
+        top.setFill(); shape.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSGradient(starting: top, ending: bottom)?.draw(in: shape, angle: -90)
+        // a soft shadow on the ground under the animal
+        NSColor(srgbRed: 0.478, green: 0.180, blue: 0.118, alpha: 0.35).setFill()
+        NSBezierPath(ovalIn: NSRect(x: 262 * k, y: 262 * k, width: 500 * k, height: 44 * k)).fill()
+        let w = 700 * k, h = w * still.size.height / still.size.width
+        let white = NSImage(size: still.size, flipped: false) { rr in still.draw(in: rr); NSColor.white.set(); rr.fill(using: .sourceAtop); return true }
+        white.draw(in: NSRect(x: r.midX - w / 2 + 10 * k, y: 250 * k, width: w, height: h))
         return true
     }
 }
@@ -3392,7 +3411,7 @@ final class App: NSObject {
         // A menu bar app has no Dock icon, so a dashboard that slipped behind other windows could only be found through the
         // menu bar again. While the window is open the app is a regular one: Dock icon, app switcher, and a click on either brings it back.
         NSApp.setActivationPolicy(.regular)
-        NSApp.applicationIconImage = dockIcon()
+        dockGrade = model.snap?.animal?.grade; NSApp.applicationIconImage = dockIcon(dockGrade)
         if NSApp.mainMenu == nil { NSApp.mainMenu = dashboardMenu() }
         NSApp.activate(ignoringOtherApps: true)
         if dash?.isMiniaturized == true { dash?.deminiaturize(nil) }
@@ -3448,7 +3467,11 @@ final class App: NSObject {
         b.attributedTitle = out
         b.toolTip = model.sysCpu != nil ? String(format: "기기 전체 CPU %.0f%%, 그중 AI 세션 %.0f%%. 세션 %d개 실행 중", (model.sysCpu ?? 0) * 100, model.share(nil), s.totals.sessions) : "작업 중인 세션 수 / 실행 중인 세션 수"
     }
+    var dockGrade: String? = nil   // the grade the Dock icon was drawn for
     func animate() {
+        if NSApp.activationPolicy() == .regular, model.snap?.animal?.grade != dockGrade {
+            dockGrade = model.snap?.animal?.grade; NSApp.applicationIconImage = dockIcon(dockGrade)
+        }
         // RunCat's rule, on the same thing RunCat measures: the whole machine. A runner that strolls while the machine is
         // flat out, because the agent sessions' own share happens to be small, reads as wrong.
         let load = min(100, max(0, (model.sysCpu ?? 0) * 100))
@@ -3724,6 +3747,8 @@ func dashboardTest(_ prefix: String) {
     DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
         let m = main.model
         print("DASHBOARD window \(main.dash.map { "\(Int($0.frame.width))x\(Int($0.frame.height)) visible \($0.isVisible)" } ?? "none") | panel closed \(!main.isOpen) | asked for detail \(m.wantDetail) | sessions \(m.snap?.sessions.count ?? 0) with detail \(m.snap?.sessions.filter { $0.detail != nil }.count ?? 0)")
+        if let icon = NSApp.applicationIconImage { png(icon, "\(prefix)-dock.png") }
+        print("DOCK icon drawn for grade \(main.dockGrade ?? "none") (species \(runnerSpecies(main.dockGrade).id))")
         print("DOCK regular app while the dashboard is open: \(NSApp.activationPolicy() == .regular) | icon set \(NSApp.applicationIconImage != nil) | menu \(NSApp.mainMenu != nil) | reopen handler \(NSApp.delegate is App)")
         print("STARTED BY " + (m.parentSession.isEmpty ? "none" : m.parentSession.map { c, up in "\(m.snap?.sessions.first { $0.pid == c }?.name ?? "\(c)") <- \(m.snap?.sessions.first { $0.pid == up }?.name ?? "\(up)")" }.sorted().joined(separator: " | ")))
         print("PHASE " + (m.snap?.sessions ?? []).map { s in "\(s.name ?? s.agent) \(m.phase(s)) [" + m.working(s, max: 3).map { "\($0.name) cpu \(pct1($0.w.cpu * 100)) gpu \(pct1($0.w.gpu * 100)) \(memText($0.w.mem))" }.joined(separator: "; ") + "]" }.joined(separator: " | "))
