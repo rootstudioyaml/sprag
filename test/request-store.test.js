@@ -177,3 +177,59 @@ test('flushPendingSessionCache writes the entries parsed so far', async () => {
   assert.equal(Object.keys(JSON.parse(readFileSync(cachePath, 'utf8')).entries).length, 11);
   assert.doesNotThrow(() => flushPendingSessionCache(), 'nothing pending once the run is done');
 });
+
+const boundaryLine = (n) => JSON.stringify({
+  type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', sessionId: 'sess-1',
+  timestamp: new Date(T0 + n * 1000).toISOString(), compactMetadata: { trigger: 'auto', preTokens: 900000, postTokens: 50000 },
+}) + '\n';
+
+test('the compaction count carries across a resumed read', async () => {
+  const f = newFile();
+  writeFileSync(f, batch(1, 10) + boundaryLine(11) + batch(12, 20) + boundaryLine(21) + batch(22, 30));
+  resetParseStats();
+  assert.equal((await withStore(f)).compactions, 2);
+  assert.equal(parseStats().resumed, 0);
+  assert.equal(JSON.parse(readFileSync(store.storePathFor(f), 'utf8')).compactions, 2, 'the store keeps the count');
+
+  appendFileSync(f, boundaryLine(31) + batch(32, 35));
+  resetParseStats();
+  const got = await withStore(f);
+  assert.equal(parseStats().resumed, 1, 'the second read resumed from the store');
+  assert.equal(got.compactions, 3);
+  assert.deepStrictEqual(got, await full(f));
+});
+
+test('a store from before the count (v1) is ignored, so the count is not short', async () => {
+  const f = newFile();
+  writeFileSync(f, batch(1, 10) + boundaryLine(11) + batch(12, 20) + boundaryLine(21) + batch(22, 30));
+  await withStore(f);
+  // What a v1 store looked like: same fields, no count.
+  const { compactions, ...v1 } = JSON.parse(readFileSync(store.storePathFor(f), 'utf8'));
+  assert.equal(compactions, 2);
+  writeFileSync(store.storePathFor(f), JSON.stringify({ ...v1, v: 1 }));
+  appendFileSync(f, boundaryLine(31) + batch(32, 35));
+  resetParseStats();
+  const got = await withStore(f);
+  assert.equal(parseStats().resumed, 0, 'the v1 store is not resumed from');
+  assert.equal(got.compactions, 3);
+  assert.equal(JSON.parse(readFileSync(store.storePathFor(f), 'utf8')).v, store.STORE_VERSION, 'and is replaced');
+});
+
+test('the compaction count survives the session cache and the window trim', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rs-compact-'));
+  const p = join(dir, 's.jsonl');
+  // Two days old at the start, so a one-day window trims the session; the
+  // count is a whole-session figure and is not trimmed with it.
+  const old = (n) => entry(n).replace(/"timestamp":"[^"]+"/, `"timestamp":"${new Date(T0 - 2 * 86400_000 + n * 1000).toISOString()}"`);
+  writeFileSync(p, old(1) + boundaryLine(2) + entry(3) + boundaryLine(4) + entry(5));
+  const st = statSync(p);
+  const files = [{ path: p, projectDir: 'proj', mtime: st.mtimeMs, size: st.size }];
+  const cachePath = join(dir, 'cache.json');
+  const first = await parseAllSessions({ files, cachePath, days: 1 });
+  assert.equal(first[0].requestCount, 2, 'the old request is trimmed');
+  assert.equal(first[0].compactions, 2);
+  const cached = await parseAllSessions({ files, cachePath, days: 3650 });
+  assert.equal(cached[0].requestCount, 3);
+  assert.equal(cached[0].compactions, 2, 'read back from the cache');
+  assert.equal(JSON.parse(readFileSync(cachePath, 'utf8')).entries[p].s.compactions, 2);
+});

@@ -403,16 +403,19 @@ test('Claude usage: the session and its subagent transcripts from the parse cach
   writeSession(claudeDir, 100);
   const transcript = writeTranscript(claudeDir, 'sid-100', [turn([1, 1, 1])]);
   const totals = (input, cacheCreation, cacheRead, output) => ({ input, cacheCreation, cacheRead, ephemeral5m: 0, ephemeral1h: 0, output });
-  const entry = (requestCount, tot) => ({ mtimeMs: 1, size: 1, s: { sessionId: 'sid-100', startTime: null, endTime: null, requestCount, totals: tot, maxContextPerRequest: 0, model: 'claude-sonnet-5-5', gatewayObserved: false } });
+  const entry = (requestCount, tot, compactions = 0) => ({ mtimeMs: 1, size: 1, s: { sessionId: 'sid-100', startTime: null, endTime: null, requestCount, totals: tot, maxContextPerRequest: 0, model: 'claude-sonnet-5-5', gatewayObserved: false, compactions } });
   const subDir = join(dirname(transcript), 'sid-100', 'subagents');
   // mtime and size no longer match the file on purpose: the display reads the last stored summary.
-  writeJson(dataDir, 'session-cache.json', { version: 6, entries: {
-    [transcript]: entry(3, totals(1_000_000, 500_000, 2_000_000, 20_000)),
-    [join(subDir, 'agent-a.jsonl')]: entry(2, totals(100_000, 5_000, 100_000, 4_000)),
+  writeJson(dataDir, 'session-cache.json', { version: 7, entries: {
+    [transcript]: entry(3, totals(1_000_000, 500_000, 2_000_000, 20_000), 2),
+    [join(subDir, 'agent-a.jsonl')]: entry(2, totals(100_000, 5_000, 100_000, 4_000), 5),
     [join(dirname(transcript), 'sid-1000', 'subagents', 'agent-x.jsonl')]: entry(9, totals(9999, 9999, 9999, 9999)), // another session whose id starts the same
     [join(dirname(transcript), 'sid-200.jsonl')]: entry(9, totals(9999, 9999, 9999, 9999)),
   } });
-  const usage = collect(t, { claudeDir, dataDir, ps: () => parsePs(PS_TEXT) }).sessions.find((s) => s.pid === 100).usage;
+  const row100 = collect(t, { claudeDir, dataDir, ps: () => parsePs(PS_TEXT) }).sessions.find((s) => s.pid === 100);
+  const usage = row100.usage;
+  // The row carries the session's own compaction count, not its subagent's.
+  assert.equal(row100.compactions, 2);
   assert.deepEqual(usage.tokens, { input: 1_100_000, cacheRead: 2_100_000, cacheWrite: 505_000, output: 24_000 });
   assert.equal(usage.requests, 5);
   const expected = estimateCost(totals(1_000_000, 500_000, 2_000_000, 20_000), 'claude-sonnet-5-5').actual + estimateCost(totals(100_000, 5_000, 100_000, 4_000), 'claude-sonnet-5-5').actual;
@@ -422,6 +425,7 @@ test('Claude usage: the session and its subagent transcripts from the parse cach
   // No cache file, or no entry for the session: null, and the snapshot total has no cost.
   const none = collect(t, { claudeDir, ps: () => parsePs(PS_TEXT) });
   assert.equal(none.sessions.find((s) => s.pid === 100).usage, null);
+  assert.equal(none.sessions.find((s) => s.pid === 100).compactions, null);
   assert.equal(none.totals.costUsd, null);
   // totals.costUsd adds the rows that have a cost.
   const snap = collect(t, { claudeDir, dataDir, ps: () => parsePs(PS_TEXT) });
@@ -436,7 +440,7 @@ test('totals.costUsd sums the numeric row costs to the cent and is null when no 
   const tr = (id) => writeTranscript(claudeDir, id, [turn([1, 1, 1])]);
   const totals = { input: 1_000_000, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 };
   const e = { mtimeMs: 1, size: 1, s: { sessionId: 'x', startTime: null, endTime: null, requestCount: 1, totals, maxContextPerRequest: 0, model: 'claude-sonnet-5-5', gatewayObserved: false } };
-  writeJson(dataDir, 'session-cache.json', { version: 6, entries: { [tr('sid-100')]: e, [tr('sid-200')]: e } });
+  writeJson(dataDir, 'session-cache.json', { version: 7, entries: { [tr('sid-100')]: e, [tr('sid-200')]: e } });
   const snap = collect(t, { claudeDir, dataDir, ps: () => parsePs(PS_TEXT) });
   const each = estimateCost(totals, 'claude-sonnet-5-5').actual;
   const costs = snap.sessions.filter((s) => s.agent === 'claude').map((s) => s.usage.costUsd);

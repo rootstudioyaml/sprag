@@ -45,7 +45,10 @@ const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // day and model), so cost can use each day's price row (#15). A v5 entry lacks
 // it, so a session crossing a price change would be priced at one day's rate
 // until its transcript changed.
-const CACHE_VERSION = 6;
+// 7: sessions carry `compactions`, the number of times Claude Code compacted the
+// conversation. A v6 entry lacks it, so a cached session would show no count
+// until its transcript changed.
+const CACHE_VERSION = 7;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).
@@ -63,6 +66,7 @@ const PRUNE_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
  * @property {string} model
  * @property {Record<string, object>} [modelTotals] totals per model, present only when more than one model spent tokens
  * @property {Record<string, Record<string, object>>} [dayTotals] totals per UTC day and model, present only when the requests span more than one UTC day
+ * @property {number} compactions times the conversation was compacted (compact_boundary lines), 0 when never
  * @property {string} [projectDir]
  */
 
@@ -79,6 +83,7 @@ function serialize(session) {
     ...(session.modelTotals ? { modelTotals: session.modelTotals } : {}),
     ...(session.dayTotals ? { dayTotals: session.dayTotals } : {}),
     gatewayObserved: !!session.gatewayObserved,
+    compactions: Number.isInteger(session.compactions) && session.compactions >= 0 ? session.compactions : 0,
   };
 }
 
@@ -96,6 +101,7 @@ function deserialize(stored, filePath, projectDir) {
     ...(stored.modelTotals && typeof stored.modelTotals === 'object' ? { modelTotals: stored.modelTotals } : {}),
     ...(stored.dayTotals && typeof stored.dayTotals === 'object' ? { dayTotals: stored.dayTotals } : {}),
     gatewayObserved: !!stored.gatewayObserved,
+    compactions: Number.isInteger(stored.compactions) && stored.compactions >= 0 ? stored.compactions : 0,
   };
 }
 

@@ -53,6 +53,13 @@ test('the default order leads with what stops the work', () => {
   // warning to make it appear.
 });
 
+test('the compaction count follows the context chip directly', () => {
+  assert.deepEqual(DEFAULT_SEGMENT_ORDER.slice(DEFAULT_SEGMENT_ORDER.indexOf('ctx'), DEFAULT_SEGMENT_ORDER.indexOf('ctx') + 3), ['ctx', 'compactions', 'ttl']);
+  const line = formatReport({ ...data(), compactions: 2 }, opts);
+  assert.ok(at(line, '📦') < at(line, '🧹'), 'ctx precedes the compaction chip');
+  assert.ok(at(line, '🧹') < at(line, '⏳'), 'and the compaction chip precedes the TTL countdown');
+});
+
 test('cache chips sit between context and the cost group', () => {
   const line = formatReport(data(), opts);
   assert.ok(at(line, '📦') < at(line, '⏳'), 'ctx precedes the TTL countdown');
@@ -133,6 +140,7 @@ test('every name in the default order is one the renderer knows', () => {
     star: { usd: 12, shownAt: Date.now() },
     team: { label: 'member-1a2b3c4d', lang: 'en', standing: null },
     ultra: false,                           // drawn only when a live render supplies it
+    compactions: 3,                         // hidden at 0
   };
   const missing = [];
   for (const name of DEFAULT_SEGMENT_ORDER) {

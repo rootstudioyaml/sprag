@@ -24,7 +24,10 @@ import { writeViaTmp } from './state-file.js';
 import { envVar } from './env.js';
 import { debug } from './debug.js';
 
-export const STORE_VERSION = 1;
+// 2: stores carry `compactions`, the count of compact_boundary lines before the
+// offset. A v1 store has no count for the bytes it already consumed, so resuming
+// from it would undercount; readStore discards it and the file is read whole once.
+export const STORE_VERSION = 2;
 /** Transcripts smaller than this are cheap to parse whole and get no store. */
 export const STORE_MIN_BYTES = 4 * 1024 * 1024;
 /** How many bytes before the offset are hashed to prove the prefix is unchanged. */

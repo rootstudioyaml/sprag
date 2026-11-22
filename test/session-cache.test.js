@@ -88,3 +88,26 @@ test('entries for long-dead transcripts are pruned on save', () => {
   assert.equal(reloaded.entries['/p/old.jsonl'], undefined, '200d-old entry should be pruned');
   assert.ok(reloaded.entries['/p/fresh.jsonl'], 'recent entry should survive');
 });
+
+test('the compaction count survives a save and a load', () => {
+  const c = { entries: {} };
+  cache.putCached(c, file, { ...session, compactions: 3 });
+  cache.saveCache(c);
+  const loaded = cache.loadCache();
+  assert.equal(cache.getCached(loaded, file).compactions, 3);
+  assert.equal(cache.peekCached(loaded, file.path).compactions, 3);
+  // A summary built without the field (an older caller) stores and reads as 0.
+  const bare = { entries: {} };
+  cache.putCached(bare, file, session);
+  assert.equal(cache.getCached(bare, file).compactions, 0);
+});
+
+test('an entry written by version 6, which has no count, is not served', () => {
+  writeFileSync(
+    cache.sessionCachePath(),
+    JSON.stringify({ version: 6, entries: { [file.path]: { mtimeMs: MTIME, size: 500, s: { ...session, startTime: null, endTime: null } } } }),
+  );
+  const loaded = cache.loadCache();
+  assert.deepEqual(loaded, { entries: {} });
+  assert.equal(cache.getCached(loaded, file), null);
+});

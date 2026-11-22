@@ -34,6 +34,7 @@ struct Session: Decodable, Identifiable {
     let state: String?; let stateSince: Double?; let tools: [String]; let subagents: Int
     let cpu: Double?; let rssMb: Double?; let procs: Int?
     let cpuPct: Double?; let model: String?; let modelName: String?; let effort: String?; let context: Ctx?; let usage: SUsage?
+    let compactions: Int?   // times the conversation was compacted; optional so a snapshot from an older sprag still decodes
     var id: Int { pid }
 }
 struct Totals: Decodable { let sessions: Int; let busy: Int; let subagents: Int; let cpu: Double?; let rssMb: Double?; let procs: Int?; let costUsd: Double? }
@@ -1677,6 +1678,10 @@ struct SessionRow: View {
                         Text("컨텍스트").foregroundColor(.secondary)
                         if let p = c.pct { Bar(value: p / 100, tint: p >= 80 ? .orange : agentTint(s.agent)).frame(width: 54); Text("\(Int(p))%").monospacedDigit() } else { Text(tokText(c.tokens)).monospacedDigit() }
                     }
+                    // The panel's own scale: secondary, then the orange of a filling context, then the red of a danger pill.
+                    if let n = s.compactions, n >= 1 {
+                        Text("압축 \(n)").font(.system(size: 10.5, weight: .medium)).monospacedDigit().foregroundColor(n >= 3 ? .red : n == 2 ? .orange : .secondary).fixedSize().help(compactionTip(n))
+                    }
                     Spacer(minLength: 0)
                 }.font(.system(size: 11.5)).lineLimit(1)
             }
@@ -2239,6 +2244,8 @@ struct Fact: View {
     }
 }
 func tokenLine(_ u: SUsage) -> String { "입력 \(tokText(u.tokens.input)), 캐시 읽기 \(tokText(u.tokens.cacheRead)), 캐시 쓰기 \(tokText(u.tokens.cacheWrite)), 출력 \(tokText(u.tokens.output))" }
+/** The tooltip of the compaction mark: each pass replaces the earlier conversation with a summary. */
+func compactionTip(_ n: Int) -> String { "이 세션에서 대화가 \(n)번 압축됐습니다. 압축될 때마다 앞에서 정한 내용이 요약으로 줄어듭니다" }
 func contextLine(_ c: Ctx) -> String { c.pct.map { "\(Int($0))% (\(tokText(c.tokens))" + (c.window.map { " / \(tokText($0)))" } ?? ")") } ?? tokText(c.tokens) }
 /** One session in full, opened by clicking its row. */
 struct SessionView: View {
@@ -2256,6 +2263,7 @@ struct SessionView: View {
                         Divider().padding(.vertical, 2)
                         Fact(label: "모델", value: [s.modelName ?? s.model ?? "알 수 없음", s.effort.map { "effort \($0)" } ?? ""].filter { !$0.isEmpty }.joined(separator: ", "))
                         if let c = s.context { Fact(label: "컨텍스트", value: contextLine(c)) }
+                        if let n = s.compactions, n >= 1 { Fact(label: "압축", value: "\(n)번") }
                         if let u = s.usage {
                             Fact(label: "토큰", value: tokenLine(u))
                             Fact(label: "비용", value: [u.costUsd.map { String(format: "$%.2f (정가 환산)", $0) } ?? "가격표 없음", u.requests.map { "요청 \(Int($0))회" } ?? ""].filter { !$0.isEmpty }.joined(separator: ", "))
@@ -2463,10 +2471,16 @@ struct SessionTile: View {
     var phase: Phase = .active
     var work: [(name: String, w: Work)] = []
     var subs = 0, subsActive = 0    // sessions this one started, and how many of them are working
-    func mini<V: View>(_ label: String, _ value: String, @ViewBuilder _ plot: () -> V) -> some View {
+    func mini<V: View>(_ label: String, _ value: String, compactions: Int? = nil, @ViewBuilder _ plot: () -> V) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label).font(.system(size: 10)).foregroundColor(pal.text2)
-            Text(value).font(.system(size: 15, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).minimumScaleFactor(0.7)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(value).font(.system(size: 15, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).minimumScaleFactor(0.7)
+                // The same scale as the context meter: muted text, then the palette's warning, then its critical colour.
+                if let n = compactions, n >= 1 {
+                    Text("압축 \(n)").font(.system(size: 10, weight: .medium)).monospacedDigit().foregroundColor(severity(Double(n), pal.text2, pal, warnAt: 2, critAt: 3).color).lineLimit(1).fixedSize().help(compactionTip(n))
+                }
+            }
             plot().frame(height: 22)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -2495,10 +2509,10 @@ struct SessionTile: View {
             HStack(alignment: .top, spacing: 12) {
                 if let c = s.context, let p = c.pct {
                     let sv = severity(p, tint, pal, warnAt: 80, critAt: 95)
-                    mini("컨텍스트", "\(Int(p))%") {
+                    mini("컨텍스트", "\(Int(p))%", compactions: s.compactions) {
                         HStack(spacing: 5) { Meter(value: p / 100, fill: sv.color); if let sym = sv.symbol { Image(systemName: sym).font(.system(size: 10)).foregroundColor(sv.color) } }.frame(maxHeight: .infinity, alignment: .center)
                     }
-                } else { mini("컨텍스트", s.context.map { tokText($0.tokens) } ?? "-") { Color.clear } }
+                } else { mini("컨텍스트", s.context.map { tokText($0.tokens) } ?? "-", compactions: s.compactions) { Color.clear } }
                 // Each bar is this session's share of the whole machine, the same scale on every tile. The session's own trend is in its detail.
                 mini("CPU", s.cpu == nil ? "-" : pct1(cpu)) { Meter(value: cpu / 100, fill: tint).frame(maxHeight: .infinity, alignment: .center).help("막대는 기기 전체 CPU에서 이 세션이 쓰는 몫입니다") }
                 mini("메모리", s.rssMb == nil ? "-" : memText(mem)) { Meter(value: mem / RAM_MB, fill: tint).frame(maxHeight: .infinity, alignment: .center).help("막대는 기기 메모리 \(Int((RAM_MB / 1024).rounded())) GB에서 이 세션이 쓰는 몫입니다") }
@@ -2711,6 +2725,7 @@ struct DashboardView: View {
             Text(activity(s, now: snap.at)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             Divider().padding(.vertical, 2)
             if let c = s.context { Fact(label: "컨텍스트", value: contextLine(c)) }
+            if let n = s.compactions, n >= 1 { Fact(label: "압축", value: "\(n)번") }
             if let u = s.usage {
                 Fact(label: "토큰", value: tokenLine(u))
                 Fact(label: "비용", value: [u.costUsd.map { String(format: "$%.2f (정가 환산)", $0) } ?? "가격표 없음", u.requests.map { "요청 \(Int($0))회" } ?? ""].filter { !$0.isEmpty }.joined(separator: ", "))

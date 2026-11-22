@@ -69,6 +69,9 @@ function newParseState(track) {
     firstTimestamp: null,
     lastTimestamp: null,
     gatewayObserved: false,
+    // Times Claude Code compacted this conversation. A whole-session figure like
+    // gatewayObserved: it is not windowed and it travels with the request store.
+    compactions: 0,
   };
 }
 
@@ -122,6 +125,12 @@ function consumeLine(st, line) {
     st.sessionId = entry.sessionId;
   }
 
+  // Decided on the parsed fields, not on a substring: transcripts quote the
+  // marker inside message text, and other subtypes (microcompact_boundary) are
+  // not a compaction of the conversation. Counted before the usage return
+  // below, because a boundary line carries no message.usage.
+  if (entry.type === 'system' && entry.subtype === 'compact_boundary') st.compactions++;
+
   const msg = entry.message;
   if (!msg?.usage || !msg.id) return;
 
@@ -174,7 +183,7 @@ function snapshotStore(st, offset, filePath) {
   }
   return {
     offset, tailHash, sessionId: st.sessionId, firstTs: st.firstTimestamp, lastTs: st.lastTimestamp,
-    gatewayObserved: !!st.gatewayObserved, reqs,
+    gatewayObserved: !!st.gatewayObserved, compactions: st.compactions, reqs,
   };
 }
 
@@ -183,6 +192,7 @@ function restoreState(st, stored) {
   st.firstTimestamp = stored.firstTs ?? null;
   st.lastTimestamp = stored.lastTs ?? null;
   st.gatewayObserved = !!stored.gatewayObserved;
+  st.compactions = Number.isInteger(stored.compactions) && stored.compactions >= 0 ? stored.compactions : 0;
   for (const row of stored.reqs) {
     if (!Array.isArray(row) || row.length < 9) throw new Error('malformed request row');
     const [id, ts, rawModel, input, cacheCreation, cacheRead, e5m, e1h, output] = row;
@@ -326,6 +336,7 @@ export async function parseSessionFile(filePath, { store = true, minBytes } = {}
     ...(modelTotals ? { modelTotals } : {}),
     ...(dayTotals ? { dayTotals } : {}),
     gatewayObserved: st.gatewayObserved,
+    compactions: st.compactions,
   };
 }
 
@@ -680,6 +691,7 @@ function trimToCutoff(session, cutoffMs) {
     ...(modelTotals ? { modelTotals } : {}),
     ...(dayTotals ? { dayTotals } : {}),
     gatewayObserved: session.gatewayObserved,
+    compactions: session.compactions,
   };
 }
 
