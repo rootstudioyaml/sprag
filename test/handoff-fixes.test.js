@@ -32,7 +32,10 @@ test('session cache round-trips gatewayObserved', async () => {
   // And for the per-UTC-day split added in version 6 (#15).
   assert.match(src, /session\.dayTotals \? \{ dayTotals: session\.dayTotals \}/);
   assert.match(src, /stored\.dayTotals && typeof stored\.dayTotals === 'object' \? \{ dayTotals: stored\.dayTotals \}/);
-  assert.match(src, /const CACHE_VERSION = 6/);
+  // And for the compaction count added in version 7.
+  assert.match(src, /compactions: Number\.isInteger\(session\.compactions\)/);
+  assert.match(src, /compactions: Number\.isInteger\(stored\.compactions\)/);
+  assert.match(src, /const CACHE_VERSION = 7/);
 });
 
 test('parseSessionFile picks the majority model and skips <synthetic>', async () => {

@@ -66,6 +66,10 @@ const ICON = {
   // Team: the people this machine is ranked among. U+1F465, East Asian Width W.
   team: '👥',
   ctx: '📦',
+  // Compactions: the conversation swept into a summary. U+1F9F9, East Asian Width
+  // W. The literal compression emoji 🗜 (U+1F5DC) is width N and would shift the
+  // line, for the reason given at `effort`.
+  compactions: '🧹',
   saved: '💰',
   used: '📊',
   reset: '🔄',
@@ -100,6 +104,7 @@ const NARROW = {
   month: '∑',     // a running total
   team: '',       // no glyph verified in the font yet; the team line's own words lead it
   ctx: '◧',       // a box filling up
+  compactions: '', // no font-verified glyph; the chip's word leads it
   saved: '✓',
   used: '◩',      // a split square: what the spend is made of
   reset: '↩',     // the window turning over

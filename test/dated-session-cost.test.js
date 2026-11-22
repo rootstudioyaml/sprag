@@ -68,7 +68,7 @@ test('a single-day session has no dayTotals and is priced at its start time', as
   assert.equal(partCost(part).actual, (2 * B / 1e6) * 0.20);
 });
 
-test('session cache keeps dayTotals and is on version 6', async () => {
+test('session cache keeps dayTotals and is on version 7', async () => {
   const s = await transcript('cache-rt', 'cache-rt', [
     ['2026-10-06T10:00:00Z', SONNET, 1000],
     ['2026-10-08T10:00:00Z', SONNET, 2000],
@@ -79,7 +79,7 @@ test('session cache keeps dayTotals and is on version 6', async () => {
   cache.saveCache(c);
   const back = cache.getCached(cache.loadCache(), file);
   assert.deepEqual(back.dayTotals, s.dayTotals);
-  assert.equal(JSON.parse(readFileSync(cache.sessionCachePath(), 'utf8')).version, 6);
+  assert.equal(JSON.parse(readFileSync(cache.sessionCachePath(), 'utf8')).version, 7, 'dayTotals came in 6, compactions in 7');
 });
 
 test('monthSpend counts a ledger-only session and never counts it twice', async () => {

@@ -175,15 +175,19 @@ export function claudeUsage({ cache, transcript, sessionId, env, now }) {
 }
 
 /**
- * Model, context and usage of one Claude session. `cache` is the loaded
- * session-cache.json, shared by every row of one snapshot.
+ * Model, context, usage and compaction count of one Claude session. `cache` is
+ * the loaded session-cache.json, shared by every row of one snapshot.
+ *
+ * `compactions` is how many times this transcript's conversation was compacted,
+ * from its own cache entry (a subagent's are not added), and null when the
+ * transcript has no entry yet.
  *
  * @returns {{ model: string|null, modelName: string|null,
  *             context: { tokens: number, window: number|null, pct: number|null }|null,
- *             usage: object|null }}
+ *             usage: object|null, compactions: number|null }}
  */
 export function claudeSessionDetail({ sessionId, transcript, dataDir, cache, env, now }) {
-  const detail = { model: null, modelName: null, context: null, usage: null };
+  const detail = { model: null, modelName: null, context: null, usage: null, compactions: null };
   try {
     const ctxPath = join(dataDir, 'ctx-window.json');
     const tail = readTail(transcript);
@@ -199,6 +203,8 @@ export function claudeSessionDetail({ sessionId, transcript, dataDir, cache, env
       detail.context = { tokens, window, pct: window ? Math.round(tokens / window * 100) : null };
     }
     detail.usage = claudeUsage({ cache, transcript, sessionId, env, now });
+    const own = typeof transcript === 'string' ? peekCached(cache, transcript) : null;
+    if (own) detail.compactions = own.compactions;
   } catch { /* keep whatever was read */ }
   return detail;
 }

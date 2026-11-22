@@ -2,9 +2,9 @@
  * Statusline data helpers that need more than a number from the payload.
  *
  * bin/cli.js assembles the report data inline and cannot be imported (it runs
- * on load), so the two derivations below live here where a test can reach them.
- * Both read only what the render has already loaded or one small JSON file the
- * statusline reads anyway; neither scans a transcript.
+ * on load), so the derivations below live here where a test can reach them.
+ * They read only what the render has already loaded or one small JSON file the
+ * statusline reads anyway; none scans a transcript.
  */
 
 import { resolve } from 'node:path';
@@ -16,6 +16,29 @@ import { sessionCostAcross } from './claude-price.js';
 const FAMILY_MAX = 14;
 
 const shortFamily = (name) => (name.length > FAMILY_MAX ? `${name.slice(0, FAMILY_MAX - 1)}…` : name);
+
+/**
+ * The loaded session the statusline is drawing for. Matched by transcript path
+ * first, then by session id, because Claude Code reports both and either can be
+ * absent or spelled differently (a symlinked home).
+ */
+function findSession(sessions, transcriptPath, sessionId) {
+  if (!Array.isArray(sessions) || (!transcriptPath && !sessionId)) return null;
+  let hit = null;
+  if (transcriptPath) {
+    const want = resolve(transcriptPath);
+    hit = sessions.find((s) => s && s.filePath && resolve(s.filePath) === want) || null;
+  }
+  if (!hit && sessionId) {
+    // A resumed conversation can leave more than one file under one id; the
+    // most recently active is the one still being written.
+    const end = (s) => (s.endTime ? new Date(s.endTime).getTime() || 0 : 0);
+    hit = sessions
+      .filter((s) => s && s.sessionId === sessionId)
+      .sort((a, b) => end(b) - end(a))[0] || null;
+  }
+  return hit;
+}
 
 /**
  * The subagent runs of the session the statusline is drawing for.
@@ -44,20 +67,7 @@ const shortFamily = (name) => (name.length > FAMILY_MAX ? `${name.slice(0, FAMIL
  *   null when the session cannot be found or ran no subagents
  */
 export function sessionSubagentSummary(sessions, { transcriptPath = null, sessionId = null, env = process.env } = {}) {
-  if (!Array.isArray(sessions) || (!transcriptPath && !sessionId)) return null;
-  let hit = null;
-  if (transcriptPath) {
-    const want = resolve(transcriptPath);
-    hit = sessions.find((s) => s && s.filePath && resolve(s.filePath) === want) || null;
-  }
-  if (!hit && sessionId) {
-    // A resumed conversation can leave more than one file under one id; the
-    // most recently active is the one still being written.
-    const end = (s) => (s.endTime ? new Date(s.endTime).getTime() || 0 : 0);
-    hit = sessions
-      .filter((s) => s && s.sessionId === sessionId)
-      .sort((a, b) => end(b) - end(a))[0] || null;
-  }
+  const hit = findSession(sessions, transcriptPath, sessionId);
   const runs = hit && Array.isArray(hit.subagentRuns) ? hit.subagentRuns : [];
   if (runs.length === 0) return null;
   const byFamily = new Map();
@@ -72,6 +82,21 @@ export function sessionSubagentSummary(sessions, { transcriptPath = null, sessio
   // switched model), so it is priced the way a session is.
   const cost = sessionCostAcross(runs, { env });
   return { total: runs.length, families, usd: cost.actual, unpriced: cost.unpriced };
+}
+
+/**
+ * How many times the conversation of the session the statusline is drawing for
+ * was compacted, as the parser counted its compact_boundary lines. The figure is
+ * that transcript's own: a subagent's compactions are not added to it.
+ *
+ * @param {Array} sessions parseAllSessions result
+ * @param {{ transcriptPath?: string|null, sessionId?: string|null }} [ids]
+ * @returns {number|null} null when the session is not among those loaded
+ */
+export function sessionCompactions(sessions, { transcriptPath = null, sessionId = null } = {}) {
+  const hit = findSession(sessions, transcriptPath, sessionId);
+  if (!hit) return null;
+  return Number.isInteger(hit.compactions) && hit.compactions >= 0 ? hit.compactions : 0;
 }
 
 /**

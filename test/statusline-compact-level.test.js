@@ -76,6 +76,12 @@ test('level 2 folds the headline lines and drops the extra chips', () => {
   assert.ok(out.split('\n').length <= 2, 'at most two lines');
 });
 
+test('level 2 keeps the compaction chip, level 3 drops it', () => {
+  const d = { ...rich(), compactions: 2 };
+  assert.match(strip(formatReport(d, { ...opts, compactLevel: 2, columns: 160 })), /🧹 2×/);
+  assert.doesNotMatch(strip(formatReport(d, { ...opts, compactLevel: 3, columns: 160 })), /🧹|Compacted/);
+});
+
 test('level 2 keeps the version chip only while an upgrade is available', () => {
   const plain = strip(formatReport(rich(), { ...opts, compactLevel: 2, columns: 120 }));
   const upgrade = strip(formatReport({ ...rich(), update: { available: true, latest: '9.9.9' } }, { ...opts, compactLevel: 2, columns: 120 }));

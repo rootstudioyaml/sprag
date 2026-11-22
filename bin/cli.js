@@ -1163,6 +1163,9 @@ async function main() {
   // This session's subagent runs, matched to the session Claude Code is
   // drawing for by the transcript path / session id in its payload.
   let sessionDelegation;
+  // How many times this session's conversation was compacted, from the same
+  // parsed sessions; null when the session is not among them.
+  let sessionCompactionCount = null;
   let runningNow = null;
   // Delegation-rule counts, read only when `--segments` names `rules`: the
   // chip is opt-in, so nothing else would look at them.
@@ -1177,6 +1180,15 @@ async function main() {
       });
     } catch (e) {
       debug('statusline-data:session-delegation', e);
+    }
+    try {
+      const { sessionCompactions } = await import('../src/statusline-data.js');
+      sessionCompactionCount = sessionCompactions(sessions, {
+        transcriptPath: extractTranscriptPath(stdinJson),
+        sessionId: extractSessionId(stdinJson),
+      });
+    } catch (e) {
+      debug('statusline-data:compactions', e);
     }
     // Subagents working right now, from the session's subagent transcripts: one
     // readdir and a stat per file, never a parse of a whole transcript.
@@ -1241,6 +1253,7 @@ async function main() {
     relaxUntil: isStatusline ? relaxUntilNow : undefined,
     delegationLevel: isStatusline ? delegationLevel : undefined,
     sessionDelegation,
+    compactions: isStatusline ? sessionCompactionCount : undefined,
     runningSubagents: runningNow,
     ruleStats,
     ttlBucket,

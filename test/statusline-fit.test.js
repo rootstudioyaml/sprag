@@ -95,6 +95,15 @@ test('segments named by the user are not dropped from the chip lines either', ()
   assert.ok(out.includes('🤖') || out.includes('Opus'), 'model kept');
 });
 
+test('the compaction chip gives way to width, unless the user named it', () => {
+  const tight = { ...base, verbose: false, columns: 40, maxLines: 1 };
+  const dropped = plain(formatReport(data({ compactions: 3 }), tight));
+  assert.ok(dropped.includes('📦'), 'ctx is kept');
+  assert.ok(!dropped.includes('🧹'), 'the compaction chip is not one of the chips that stop the work');
+  const named = plain(formatReport(data({ compactions: 3 }), { ...tight, segments: ['ctx', 'compactions'] }));
+  assert.ok(named.includes('🧹 3×'), 'named, it stays');
+});
+
 test('the live statusline assumes 120 cells when no width is known', () => {
   assert.equal(DEFAULT_COLUMNS, 120);
 });

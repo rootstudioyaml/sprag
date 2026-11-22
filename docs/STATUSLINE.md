@@ -30,6 +30,7 @@ With an empty ledger (no measured delegation yet) row 1 is not drawn and the lay
 | `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm. Ticking while idle requires Claude Code v2.1.97+ (see [If the countdown looks frozen](./GATEWAYS.md)) |
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
+| `🧹 Compacted 3×` | How many times this session's conversation was compacted. Each compaction replaces the earlier conversation with a summary, so what was decided early gets blurrier with every pass. Hidden at 0, gray at 1, yellow at 2, red from 3. `--segments` knows it as `compactions` |
 | `💵 Sep $42` | **Estimated spend since 00:00 on the 1st of this month** (local time). Summed per session with that session's model pricing, from this machine's session logs only. Hidden when a gateway budget chip is present, since that reports measured spend for every call the key served and two disagreeing dollar figures are worse than one (v3.35.0) |
 | `💳 budget` | **LiteLLM key budget gauge.** When stdin carries no rate_limits, shows the key's `spend` against `max_budget` as `💳 budget ▰▰▰▱▱▱▱▱▱▱▱▱ 26% $1.0K/$4.0K`, with the time left on the billing cycle (v3.35.0, [below](./GATEWAYS.md)) |
 | `💰` | Prompt-cache savings **over the analysis window** — a **different** number from row 1's `🔀`, which is a lifetime total from the ledger |

@@ -279,6 +279,7 @@ function claudeRow(file, { claudeDir, dataDir, now, table, env, getCache, detail
     effort,
     context: usage.context,
     usage: usage.usage,
+    compactions: usage.compactions,
     cpu: table ? 0 : null,
     cpuPct: null,
     rssMb: table ? 0 : null,

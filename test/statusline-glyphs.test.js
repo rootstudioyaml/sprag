@@ -119,6 +119,7 @@ function data() {
     monthSpend: { label: 'Sep', usd: 830 },
     update: { available: true, latest: '9.9.9' },
     unresolvedRuns: 2,
+    compactions: 3,
     totals: { total: 21.8, byPair: [{ from: 'opus', to: 'sonnet', runs: 39, usd: 18.1 }] },
   };
 }
@@ -128,6 +129,7 @@ test('a full narrow line emits nothing outside the verified vocabulary', () => {
     const out = formatReport(data(), { color: false, mode: 'narrow', verbose });
     assert.deepEqual(unvetted(out), [], `narrow verbose=${verbose} used an unverified character`);
     assert.deepEqual(astral(out), [], `narrow verbose=${verbose} used an emoji`);
+    assert.match(strip(out), /Compacted 3×/, 'the compaction chip is on the line under test');
   }
 });
 
@@ -138,6 +140,7 @@ test('text mode carries no emoji either', () => {
     const out = formatReport(data(), { color: false, mode: 'text', verbose });
     assert.deepEqual(astral(out), [], `text verbose=${verbose} must stay emoji-free`);
     assert.deepEqual(unvetted(out), []);
+    assert.match(strip(out), /Compacted 3×/, 'the compaction chip is on the line under test');
   }
   const verbose = strip(formatReport(data(), { color: false, mode: 'text', verbose: true }));
   assert.match(verbose, /resets /, 'text mode names the reset instead of drawing it');
@@ -145,7 +148,7 @@ test('text mode carries no emoji either', () => {
 
 test('icon mode still uses the emoji, so other terminals are unaffected', () => {
   const out = strip(formatReport(data(), { color: false, mode: 'icon', verbose: true }));
-  for (const emoji of ['🧠', '⏳', '📦', '💰', '🤖', '🔬']) {
+  for (const emoji of ['🧠', '⏳', '📦', '🧹', '💰', '🤖', '🔬']) {
     assert.ok(out.includes(emoji), `icon mode should still render ${emoji}`);
   }
 });

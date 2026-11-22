@@ -105,3 +105,44 @@ test('getLastUserMessageTime returns the newest user entry only', async () => {
 test('getLastUserMessageTime returns null for a missing file', async () => {
   assert.equal(await getLastUserMessageTime('/nonexistent/session.jsonl'), null);
 });
+
+/** A compact_boundary line as Claude Code writes it, keys trimmed. */
+function boundary(ts, trigger = 'auto') {
+  return {
+    parentUuid: null, isSidechain: false, type: 'system', subtype: 'compact_boundary',
+    content: 'Conversation compacted', timestamp: ts, sessionId: 'sess-1',
+    compactMetadata: { trigger, preTokens: 900000, postTokens: 50000 },
+  };
+}
+
+test('parseSessionFile counts compact_boundary lines by their parsed fields only', async () => {
+  const { path, cleanup } = fixture([
+    usageEntry({ requestId: 'r1', id: 'm1', ts: '2026-07-01T10:00:00Z', input: 10, out: 5 }),
+    boundary('2026-07-01T10:10:00Z', 'auto'),
+    // Only mentions the marker inside a message string: not a compaction.
+    { type: 'user', sessionId: 'sess-1', timestamp: '2026-07-01T10:11:00Z',
+      message: { role: 'user', content: 'grep for "subtype":"compact_boundary" in the transcript' } },
+    // Another subtype of the same family is not a compaction of the conversation.
+    { ...boundary('2026-07-01T10:12:00Z'), subtype: 'microcompact_boundary' },
+    boundary('2026-07-01T10:20:00Z', 'manual'),
+    usageEntry({ requestId: 'r2', id: 'm2', ts: '2026-07-01T10:30:00Z', input: 20, out: 7 }),
+  ]);
+  try {
+    const s = await parseSessionFile(path, { store: false });
+    assert.equal(s.compactions, 2);
+    assert.equal(s.requestCount, 2, 'boundary lines are not requests');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a transcript with no boundary line reports zero compactions', async () => {
+  const { path, cleanup } = fixture([
+    usageEntry({ requestId: 'r1', id: 'm1', ts: '2026-07-01T10:00:00Z', input: 10, out: 5 }),
+  ]);
+  try {
+    assert.equal((await parseSessionFile(path, { store: false })).compactions, 0);
+  } finally {
+    cleanup();
+  }
+});

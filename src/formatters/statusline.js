@@ -1145,6 +1145,22 @@ function buildCtxSeg(ctxLive, contextWindow, c, isIcon, verbose, g) {
   return ctxSeg;
 }
 
+/**
+ * How many times this session's conversation was compacted: `Compacted 3×`.
+ * Each compaction replaces the earlier conversation with a summary, so what was
+ * decided early gets blurrier with every pass, and the tone darkens with the
+ * count: gray at 1, yellow at 2, red from 3. Nothing at 0. It sits right after
+ * the context chip because it is the history of that same fill level.
+ */
+function buildCompactionsSeg(count, c, isIcon, verbose, g) {
+  if (!Number.isInteger(count) || count < 1) return null;
+  const tone = count >= 3 ? RED : count === 2 ? YELLOW : GRAY;
+  const words = `Compacted ${count}×`;
+  let text = words;
+  if (isIcon && g.compactions) text = verbose ? `${g.compactions} ${words}` : `${g.compactions} ${count}×`;
+  return `${c(tone)}${text}${c(RESET)}`;
+}
+
 /** The warning chip the analyzer raised for this window, if any. */
 function buildSpikeSeg(spikeChip, c) {
   // Spike chip — one word only, keeps the statusline single-line.
@@ -1610,6 +1626,8 @@ function buildDoc2mdSeg(doc2md, singleLine, c, isIcon, verbose, g) {
 export const DEFAULT_SEGMENT_ORDER = [
   'cap-warn', 'spike',
   'usage', 'ctx',
+  // Right after the context chip: how many times that context was compacted.
+  'compactions',
   'ttl',
   'model', 'effort', 'ultra',
   // Grouped by the timeframe each figure covers, because mixing them was the
@@ -1677,6 +1695,7 @@ function segmentsNamed(name, s, usageByKey) {
     case 'ttl':       return [s.ttl];
     case 'month':     return [s.month];
     case 'ctx':       return [s.ctx];
+    case 'compactions': return [s.compactions];
     case 'saved':     return [s.saved];
     case 'period':    return [s.period];
     // Every rate-limit window, in payload order.
@@ -1701,7 +1720,9 @@ function normalizeCompactLevel(level) {
 // Names kept in the default order at compact level 2 and 3. `usage` stands for
 // every rate-limit window; `version` joins only while an upgrade is available.
 const COMPACT_KEEP_3 = ['cap-warn', 'spike', 'usage', 'ctx', 'ttl'];
-const COMPACT_KEEP_2 = [...COMPACT_KEEP_3, 'model', 'effort', 'ultra', 'delegated'];
+// `compactions` stays at level 2 but not 3: it is a health signal about the
+// session, not a chip that stops the work.
+const COMPACT_KEEP_2 = [...COMPACT_KEEP_3, 'compactions', 'model', 'effort', 'ultra', 'delegated'];
 
 /** The default-order names a compact level keeps, or null when it keeps all. */
 function compactKeepNames(level, updateAvailable) {
@@ -1826,7 +1847,7 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v,
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
  * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
- * @param {number} [opts.compactLevel=0] - 0 keeps `verbose` as given, 1 forces short labels, 2 adds folded headline lines (chips instead), the default chip set cut to cap-warn, spike, usage, ctx, ttl, model, effort, ultra, delegated (plus version while an upgrade is available) and at most 2 chip lines, 3 keeps cap-warn, spike, usage, ctx, ttl on one line. An explicit `segments` list is never filtered by the level.
+ * @param {number} [opts.compactLevel=0] - 0 keeps `verbose` as given, 1 forces short labels, 2 adds folded headline lines (chips instead), the default chip set cut to cap-warn, spike, usage, ctx, compactions, ttl, model, effort, ultra, delegated (plus version while an upgrade is available) and at most 2 chip lines, 3 keeps cap-warn, spike, usage, ctx, ttl on one line. An explicit `segments` list is never filtered by the level.
  */
 export function formatReport(data, { color = true, verbose: verboseOpt = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines: maxLinesOpt = 3, compactLevel = 0 } = {}) {
   // Compact level: 1+ means short labels, 2+ folds the headline lines and trims
@@ -1885,6 +1906,7 @@ export function formatReport(data, { color = true, verbose: verboseOpt = false, 
     spike: buildSpikeSeg(spikeChip, c),
     usage: buildUsageSegs(caps, capWarn, c, isIcon, verbose, g, color, mode),
     ctx: buildCtxSeg(ctxLive, contextWindow, c, isIcon, verbose, g),
+    compactions: buildCompactionsSeg(data.compactions, c, isIcon, verbose, g),
     ttl: buildTtlSeg({ ttl, ttlBucket: data.ttlBucket, lastActivity }, timer, c, isIcon, verbose, g),
     // Model, then the effort that qualifies it: the same model answers
     // differently at `low` and at `max`, and the pair is one glance.
