@@ -372,8 +372,9 @@ export function installLauncher(deps = {}) {
       env: deps.env ?? process.env,
       version: PKG_VERSION,
     });
+    // Windows keeps no execute bits, so there the check would call every launcher stale (only the tests write one there).
     let executable = false;
-    try { executable = (statSync(files.script).mode & 0o111) !== 0; } catch { /* a missing script is rewritten */ }
+    try { executable = process.platform === 'win32' || (statSync(files.script).mode & 0o111) !== 0; } catch { /* a missing script is rewritten */ }
     if (oldPlist === want.plist && readText(files.script) === want.script && executable) return 'unchanged';
     mkdirSync(join(paths.launcher, 'Contents', 'MacOS'), { recursive: true });
     writeFileSync(files.plist, want.plist);
