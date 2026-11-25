@@ -100,6 +100,31 @@ test('the shipped Swift source is where BAR_SOURCE says and is listed in the pac
   assert.ok(!pkg.files.some((f) => /sprag-bar$|\.app/.test(f)), 'no binary is shipped');
 });
 
+// #22: Swift 6.0 (Command Line Tools on older Macs) type-checks a multi-statement closure together with the call that
+// takes it. The 255-line runner drawing inside NSImage(size:flipped:) failed there with "unable to type-check this
+// expression in reasonable time", while Swift 6.3 compiled it in seconds, so a build on a new Mac never shows it.
+// Long drawing code goes in a function and the closure only calls it.
+test('drawing closures handed to NSImage(size:flipped:) stay short enough for Swift 6.0', () => {
+  const MAX_LINES = 30;
+  const lines = readFileSync(BAR_SOURCE, 'utf8').split('\n');
+  const long = [];
+  lines.forEach((line, i) => {
+    const at = line.search(/NSImage\(size:[^{]*flipped:[^{]*\{/);
+    if (at < 0) return;
+    let rest = line.slice(line.indexOf('{', at));
+    let depth = 0;
+    let j = i;
+    for (;;) {
+      for (const ch of rest) depth += ch === '{' ? 1 : ch === '}' ? -1 : 0;
+      if (depth <= 0 || j + 1 >= lines.length) break;
+      j += 1;
+      rest = lines[j];
+    }
+    if (j - i + 1 > MAX_LINES) long.push(`SpragBar.swift:${i + 1} (${j - i + 1} lines)`);
+  });
+  assert.deepEqual(long, [], 'move the drawing into a function and call it from the closure');
+});
+
 test('barPaths puts the binary under the build id and the state files in the data directory', () => {
   const p = barPaths({ dataDir: '/home/me/data', version: '1.2.3' });
   assert.equal(p.dir, join('/home/me/data', 'bar'));
