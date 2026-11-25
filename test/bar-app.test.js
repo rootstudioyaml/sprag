@@ -4,11 +4,13 @@ import { execFileSync } from 'node:child_process';
 import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync, readdirSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   BAR_SOURCE,
+  LAUNCHER_ID,
+  LAUNCHER_NAME,
   LOCK_STALE_MS,
   barChildEnv,
   barEnabled,
@@ -17,8 +19,11 @@ import {
   buildBar,
   ensureBar,
   findSwiftc,
+  installLauncher,
   launchBar,
+  launcherFiles,
   removeBarFiles,
+  removeLauncher,
   stopBar,
   barBuildId,
   barBuildBlockedNotice,
@@ -30,8 +35,10 @@ import { childEnv } from './helpers/child-env.js';
 /*
  * The menu bar app is compiled on the user's Mac once per version and started
  * at session start. Every case here injects its outside effects (run, spawn,
- * kill, exists, clock, dataDir, version), so no process starts, nothing is
- * compiled and nothing outside a temporary folder is written. The one real
+ * kill, exists, clock, dataDir, appsDir, version), so no process starts, nothing
+ * is compiled and nothing outside a temporary folder is written. In particular
+ * nothing may write the real ~/Applications: every case that starts the app
+ * (launchBar, ensureBar, `bar on`) names a temporary appsDir or HOME. The one real
  * process is the CLI in the session-start case, which runs with SPRAG_NO_BAR
  * set (childEnv does that) or with a PATH that holds no compiler.
  */
@@ -64,11 +71,16 @@ const TOOLCHAIN = { 'xcode-select': { stdout: '/Library/Developer/CommandLineToo
 
 function setup(t, extra = {}) {
   const dataDir = sandbox(t);
-  const paths = barPaths({ dataDir, version: VERSION });
+  // Every path the cases look at, and every path the code under test writes, sits under the sandbox.
+  const appsDir = join(dataDir, 'Applications');
+  const paths = barPaths({ dataDir, version: VERSION, appsDir });
   const kills = [];
   const spawns = [];
   const deps = {
     dataDir,
+    // The launcher bundle goes here, never into the real ~/Applications.
+    appsDir,
+    platform: 'darwin',
     version: VERSION,
     kill: (pid, sig) => { kills.push([pid, sig]); },
     spawn: (cmd, args, opts) => { spawns.push({ cmd, args, opts }); return { unref() {} }; },
@@ -132,6 +144,11 @@ test('barPaths puts the binary under the build id and the state files in the dat
   assert.equal(p.pidFile, join('/home/me/data', 'bar-app.json'));
   assert.equal(p.buildState, join('/home/me/data', 'bar-build.json'));
   assert.equal(p.buildLock, join('/home/me/data', 'bar-build.lock'));
+  assert.equal(p.appsDir, join(homedir(), 'Applications'));
+  assert.equal(p.launcher, join(homedir(), 'Applications', LAUNCHER_NAME));
+  const moved = barPaths({ dataDir: '/home/me/data', version: '1.2.3', home: '/home/me' });
+  assert.equal(moved.launcher, join('/home/me', 'Applications', 'Sprag Bar.app'));
+  assert.equal(barPaths({ dataDir: '/x', appsDir: '/apps', home: '/home/me' }).launcher, join('/apps', 'Sprag Bar.app'), 'appsDir wins over home');
   // Keyed by the source, not the sprag version: an upgrade that leaves the app's source alone must not recompile it.
   assert.match(barPaths({ dataDir: '/x' }).binary, /bar[\\/][0-9a-f]{12}[\\/]sprag-bar$/, 'the build id defaults to a hash of the source');
   const dir = mkdtempSync(join(tmpdir(), 'bar-id-'));
@@ -230,6 +247,130 @@ test('launchBar starts the binary detached with the cleaned environment and the 
   assert.equal(s.opts.stdio, 'ignore');
   assert.equal(s.opts.windowsHide, true);
   assert.deepEqual(s.opts.env, { PATH: '/usr/bin' });
+});
+
+test('launchBar writes the launcher into appsDir before it starts the app', (t) => {
+  const { deps, paths, spawns } = setup(t, { env: { PATH: '/usr/bin' }, execPath: '/opt/node' });
+  launchBar(deps);
+  assert.equal(existsSync(join(paths.launcher, 'Contents', 'Info.plist')), true);
+  assert.equal(spawns.length, 1);
+  assert.deepEqual(deps.run.calls.map((c) => c.cmd.split('/').pop()), ['lsregister']);
+});
+
+test('launchBar still starts the app when the launcher cannot be written', (t) => {
+  const { deps, dataDir, spawns } = setup(t);
+  // A plain file where the Applications folder should be makes every write under it fail.
+  writeFileSync(join(dataDir, 'Applications'), 'not a folder');
+  assert.doesNotThrow(() => launchBar(deps));
+  assert.equal(spawns.length, 1);
+  assert.doesNotThrow(() => launchBar({ ...deps, run: () => { throw new Error('boom'); } }));
+});
+
+// the launcher bundle
+
+const LAUNCH = { execPath: '/opt/node', cliEntry: '/opt/sprag/bin/cli.js', env: {}, version: '1.2.3' };
+const bundleFile = (paths, ...rest) => join(paths.launcher, 'Contents', ...rest);
+
+test('launcherFiles writes only the configured folders into the script, in a fixed order, with quotes escaped', () => {
+  const bare = launcherFiles(LAUNCH);
+  assert.equal(bare.script, [
+    '#!/bin/sh',
+    '# Written by sprag. Opening Sprag Bar runs `sprag bar on`, which turns the menu bar app on and starts it.',
+    "exec '/opt/node' '/opt/sprag/bin/cli.js' bar on",
+    '',
+  ].join('\n'));
+  const env = { CODEX_HOME: '/h/.codex', XDG_CONFIG_HOME: "/h/it's", CLAUDE_CONFIG_DIR: '', PATH: '/usr/bin', HOME: '/h' };
+  const set = launcherFiles({ ...LAUNCH, env });
+  const lines = set.script.split('\n');
+  assert.deepEqual(lines.slice(2, -2), ["export XDG_CONFIG_HOME='/h/it'\\''s'", "export CODEX_HOME='/h/.codex'"], 'empty and unrelated keys are left out');
+  assert.equal(lines.at(-2), "exec '/opt/node' '/opt/sprag/bin/cli.js' bar on");
+  const claude = launcherFiles({ ...LAUNCH, env: { CLAUDE_CONFIG_DIR: '/h/.claude-work', CODEX_HOME: 5 } });
+  assert.match(claude.script, /^export CLAUDE_CONFIG_DIR='\/h\/\.claude-work'$/m);
+  assert.doesNotMatch(claude.script, /CODEX_HOME/, 'a value that is not a string is left out');
+  assert.equal(launcherFiles({ ...LAUNCH, env: undefined }).script, bare.script);
+});
+
+test('launcherFiles gives an Info.plist that names the bundle, the executable and a background app', () => {
+  const { plist } = launcherFiles({ ...LAUNCH, version: '1.2.3<&>' });
+  assert.match(plist, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+  assert.match(plist, new RegExp(`<key>CFBundleIdentifier</key>\\s*<string>${LAUNCHER_ID}</string>`));
+  assert.equal(LAUNCHER_ID, 'io.sprag.bar-launcher');
+  assert.match(plist, /<key>CFBundleName<\/key>\s*<string>Sprag Bar<\/string>/);
+  assert.match(plist, /<key>CFBundleDisplayName<\/key>\s*<string>Sprag Bar<\/string>/);
+  assert.match(plist, /<key>CFBundleExecutable<\/key>\s*<string>sprag-bar-launcher<\/string>/);
+  assert.match(plist, /<key>CFBundlePackageType<\/key>\s*<string>APPL<\/string>/);
+  assert.match(plist, /<key>LSUIElement<\/key>\s*<true\/>/);
+  assert.match(plist, /<key>CFBundleShortVersionString<\/key>\s*<string>1\.2\.3&lt;&amp;&gt;<\/string>/, 'text values are XML-escaped');
+  assert.equal(plist.includes('"1.2.3'), false);
+});
+
+test('installLauncher creates the bundle, leaves it alone the second time and updates it when the script changes', (t) => {
+  const { deps, paths } = setup(t, { execPath: '/opt/node', cliEntry: '/opt/sprag/bin/cli.js', env: { CLAUDE_CONFIG_DIR: '/h/.claude' } });
+  assert.equal(installLauncher(deps), 'created');
+  const script = bundleFile(paths, 'MacOS', 'sprag-bar-launcher');
+  assert.match(readFileSync(script, 'utf8'), /^export CLAUDE_CONFIG_DIR='\/h\/\.claude'\nexec '\/opt\/node' '\/opt\/sprag\/bin\/cli\.js' bar on\n$/m);
+  assert.match(readFileSync(bundleFile(paths, 'Info.plist'), 'utf8'), /io\.sprag\.bar-launcher/);
+  if (process.platform !== 'win32') assert.equal(statSync(script).mode & 0o777, 0o755);
+  assert.equal(deps.run.calls.length, 1, 'a new bundle is registered once');
+  assert.match(deps.run.calls[0].cmd, /lsregister$/);
+  assert.deepEqual(deps.run.calls[0].args, ['-f', paths.launcher]);
+
+  const mtime = statSync(script).mtimeMs;
+  assert.equal(installLauncher(deps), 'unchanged');
+  assert.equal(statSync(script).mtimeMs, mtime, 'nothing is rewritten');
+  assert.equal(deps.run.calls.length, 1, 'and nothing is registered again');
+
+  assert.equal(installLauncher({ ...deps, execPath: '/opt/other-node' }), 'updated');
+  assert.match(readFileSync(script, 'utf8'), /exec '\/opt\/other-node'/);
+  if (process.platform !== 'win32') assert.equal(statSync(script).mode & 0o777, 0o755);
+  assert.equal(deps.run.calls.length, 1, 'an update is not registered again');
+  assert.equal(installLauncher({ ...deps, execPath: '/opt/other-node' }), 'unchanged');
+});
+
+test('installLauncher ignores a failing lsregister', (t) => {
+  const { deps } = setup(t, { run: () => { throw new Error('no lsregister'); } });
+  assert.equal(installLauncher(deps), 'created');
+  const failing = setup(t, { run: fakeRun({ '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister': { status: 1 } }) });
+  assert.equal(installLauncher(failing.deps), 'created');
+});
+
+test('installLauncher leaves a bundle or a file it did not write alone', (t) => {
+  const { deps, paths, dataDir } = setup(t);
+  mkdirSync(join(paths.launcher, 'Contents'), { recursive: true });
+  const plist = bundleFile(paths, 'Info.plist');
+  writeFileSync(plist, '<plist><dict><key>CFBundleIdentifier</key><string>com.example.mine</string></dict></plist>');
+  assert.equal(installLauncher(deps), 'foreign');
+  assert.equal(readFileSync(plist, 'utf8').includes('com.example.mine'), true);
+  assert.equal(existsSync(bundleFile(paths, 'MacOS')), false, 'nothing is added to it');
+  assert.equal(removeLauncher(deps), false, 'and it is not removed either');
+  assert.equal(existsSync(plist), true);
+  assert.equal(deps.run.calls.length, 0);
+
+  rmSync(paths.launcher, { recursive: true, force: true });
+  writeFileSync(paths.launcher, 'a file named like the bundle');
+  assert.equal(installLauncher(deps), 'foreign');
+  assert.equal(readFileSync(paths.launcher, 'utf8'), 'a file named like the bundle');
+  assert.equal(removeLauncher(deps), false);
+  assert.equal(existsSync(dataDir), true);
+});
+
+test('installLauncher: not-mac on other systems, and error without throwing', (t) => {
+  const { deps, paths, dataDir } = setup(t);
+  assert.equal(installLauncher({ ...deps, platform: 'linux' }), 'not-mac');
+  assert.equal(installLauncher({ ...deps, platform: 'win32' }), 'not-mac');
+  assert.equal(existsSync(paths.launcher), false);
+  writeFileSync(join(dataDir, 'Applications'), 'not a folder');
+  assert.equal(installLauncher(deps), 'error');
+});
+
+test('removeLauncher deletes only a bundle whose Info.plist names ours', (t) => {
+  const { deps, paths } = setup(t);
+  assert.equal(removeLauncher(deps), false, 'nothing there');
+  assert.equal(installLauncher(deps), 'created');
+  assert.equal(removeLauncher(deps), true);
+  assert.equal(existsSync(paths.launcher), false);
+  assert.equal(removeLauncher(deps), false);
+  assert.equal(removeLauncher({ ...deps, appsDir: join(deps.dataDir, 'no', 'such') }), false);
 });
 
 // buildBar
@@ -427,6 +568,7 @@ test('ensureBar: running, when the same version is up', (t) => {
   assert.equal(ensureBar({ ...deps, ...MAC }), 'running');
   assert.equal(spawns.length, 0);
   assert.deepEqual(kills.filter(([, s]) => s === 'SIGTERM'), []);
+  assert.equal(existsSync(join(deps.appsDir, LAUNCHER_NAME, 'Contents', 'Info.plist')), true, 'an app that stays up across upgrades still gets the launcher');
 });
 
 test('ensureBar: restarted, when another version is up and this one is built', (t) => {
@@ -444,7 +586,8 @@ test('ensureBar: started, when the binary exists and nothing runs', (t) => {
   writeBinary(paths);
   assert.equal(ensureBar({ ...deps, ...MAC }), 'started');
   assert.equal(spawns.length, 1);
-  assert.equal(deps.run.calls.length, 0, 'no toolchain probe when the binary is there');
+  assert.deepEqual(deps.run.calls.map((c) => c.cmd.split('/').pop()), ['lsregister'], 'no toolchain probe when the binary is there');
+  assert.equal(existsSync(join(deps.appsDir, LAUNCHER_NAME, 'Contents', 'Info.plist')), true, 'the launcher is written with the first start');
 });
 
 test('ensureBar: build-failed, when this version failed less than a day ago', (t) => {
@@ -543,10 +686,19 @@ test('removeBarFiles stops the app and deletes the folder, the pid file, the bui
   writePid(paths, 4242);
   writeState(paths, { version: VERSION, ok: true });
   writeLock(paths, 1000);
+  assert.equal(installLauncher(deps), 'created');
   removeBarFiles(deps);
   assert.deepEqual(kills.filter(([, s]) => s === 'SIGTERM'), [[4242, 'SIGTERM']]);
-  for (const p of [paths.dir, paths.pidFile, paths.buildState, paths.buildLock]) assert.equal(existsSync(p), false, p);
+  for (const p of [paths.dir, paths.pidFile, paths.buildState, paths.buildLock, paths.launcher]) assert.equal(existsSync(p), false, p);
   assert.doesNotThrow(() => removeBarFiles(deps), 'nothing left is not an error');
+});
+
+test('removeBarFiles keeps a bundle named Sprag Bar.app that is not ours', (t) => {
+  const { deps, paths } = setup(t);
+  mkdirSync(join(paths.launcher, 'Contents'), { recursive: true });
+  writeFileSync(bundleFile(paths, 'Info.plist'), 'com.example.mine');
+  removeBarFiles(deps);
+  assert.equal(existsSync(bundleFile(paths, 'Info.plist')), true);
 });
 
 // the subcommands
@@ -560,6 +712,8 @@ function fakeBar(over = {}) {
     barPaths: (d) => barPaths(d),
     barRunning: rec('barRunning', null),
     stopBar: rec('stopBar', false),
+    removeLauncher: rec('removeLauncher', false),
+    installLauncher: rec('installLauncher', 'unchanged'),
     findSwiftc: rec('findSwiftc', '/usr/bin/swiftc'),
     buildBar: rec('buildBar', { ok: true, ms: 31_400, error: null }),
     launchBar: rec('launchBar', undefined),
@@ -579,7 +733,7 @@ async function runSub(args, { lang, platform = 'darwin', bar, exists = () => fal
     hasFlag: (f) => flags.includes(f),
     deps: {
       lang, platform, bar,
-      barDeps: { dataDir: '/home/me/data', version: VERSION, exists },
+      barDeps: { dataDir: '/home/me/data', appsDir: '/home/me/Applications', version: VERSION, exists },
       stdout: { write: (s) => out.push(s) },
       stderr: { write: (s) => err.push(s) },
     },
@@ -596,6 +750,8 @@ test('sprag bar off switches the app off, stops it and says how to bring it back
   const r = await runSub(['off'], { lang: 'en', bar: en.bar });
   assert.deepEqual(en.log.filter((l) => l[0] === 'setBarEnabled'), [['setBarEnabled', false]]);
   assert.ok(names(en.log).includes('stopBar'));
+  const off = names(en.log).filter((n) => ['stopBar', 'removeLauncher'].includes(n));
+  assert.deepEqual(off, ['stopBar', 'removeLauncher'], 'the launcher goes after the app is stopped');
   assert.match(r.out, /off/);
   assert.match(r.out, /sprag bar on/);
   assert.equal(r.code, 0);
@@ -621,6 +777,7 @@ test('sprag bar on: already running with this version', async () => {
   assert.match(en.out, /already running/);
   assert.match(en.out, /4242/);
   assert.ok(!names(f.log).includes('launchBar'));
+  assert.ok(names(f.log).includes('installLauncher'), 'an app that is already up still gets the launcher');
   const ko = await runSub(['on'], { lang: 'ko', bar: fakeBar({ barRunning: () => ({ pid: 4242, version: VERSION }) }).bar });
   assert.match(ko.out, /이미 실행 중/);
 });
@@ -641,12 +798,14 @@ test('sprag bar on: compiles when the binary is missing, then starts it', async 
   const r = await runSub(['on'], { lang: 'en', bar: en.bar });
   assert.match(r.out, /Compiling.*half a minute/);
   assert.match(r.out, /in the menu bar/);
+  assert.match(r.out, /Open "Sprag Bar" from Spotlight or Launchpad to start it again later\./);
   assert.equal(r.code, 0);
   const order = names(en.log).filter((n) => ['setBarEnabled', 'buildBar', 'launchBar'].includes(n));
   assert.deepEqual(order, ['setBarEnabled', 'buildBar', 'launchBar']);
   const ko = await runSub(['on'], { lang: 'ko', bar: fakeBar().bar });
   assert.match(ko.out, /30초/);
   assert.match(ko.out, /메뉴 막대/);
+  assert.match(ko.out, /나중에 다시 켤 때는 Spotlight나 Launchpad에서 Sprag Bar를 여십시오\./);
 });
 
 test('sprag bar on: a built binary is started without compiling', async () => {
@@ -708,7 +867,8 @@ test('sprag bar status prints one line each in both languages', async () => {
   assert.match(lines[1], /^Running: yes \(pid 4242, build 9\.9\.9\)$/);
   assert.match(lines[2], /^Compiled \(build 9\.9\.9\): yes \(.*sprag-bar\)$/);
   assert.match(lines[3], /^Swift toolchain: found \(\/usr\/bin\/swiftc\)$/);
-  assert.match(lines[4], /^Last build error/);
+  assert.equal(lines[4], `Launcher app: yes (${join('/home/me/Applications', LAUNCHER_NAME)})`);
+  assert.match(lines[5], /^Last build error/);
   assert.match(en.out, /error: boom/);
   assert.equal(en.code, 0);
 
@@ -718,14 +878,17 @@ test('sprag bar status prints one line each in both languages', async () => {
   assert.match(kl[1], /^실행 중: 예 \(pid 4242, 빌드 9\.9\.9\)$/);
   assert.match(kl[2], /^컴파일 \(빌드 9\.9\.9\): 있음/);
   assert.match(kl[3], /^Swift 도구: 있음/);
-  assert.match(kl[4], /^마지막 컴파일 오류/);
+  assert.match(kl[4], /^응용 프로그램 실행기: 있음 \(.*Sprag Bar\.app\)$/);
+  assert.match(kl[5], /^마지막 컴파일 오류/);
 
   const down = await runSub(['status'], { lang: 'en', bar: fakeBar({ barEnabled: () => false, findSwiftc: () => null }).bar });
   const dl = down.out.trimEnd().split('\n');
   assert.equal(dl[2], 'Compiled (build 9.9.9): no');
   assert.deepEqual(dl.map((l) => l.replace(/\(.*\)/, '()')), [
-    'Menu bar app: off', 'Running: no', 'Compiled (): no', 'Swift toolchain: missing ()',
+    'Menu bar app: off', 'Running: no', 'Compiled (): no', 'Swift toolchain: missing ()', 'Launcher app: no',
   ]);
+  const downKo = await runSub(['status'], { lang: 'ko', bar: fakeBar().bar });
+  assert.match(downKo.out, /^응용 프로그램 실행기: 없음$/m);
 });
 
 test('a bar call with no subcommand still prints the snapshot', async () => {
@@ -786,8 +949,13 @@ test('the SessionStart hook reaches ensureBar, which stops at a missing toolchai
 test('sprag bar off writes bar: false to the config, and the hook then starts nothing', (t) => {
   const { dir, home, empty, data } = hookSandbox(t);
   const env = childEnv({ HOME: home, XDG_CONFIG_HOME: dir, SPRAG_NO_BAR: undefined, PATH: empty });
+  // The CLI child's home is the sandbox, so the launcher it removes is the one placed under it.
+  const launcher = join(home, 'Applications', LAUNCHER_NAME);
+  mkdirSync(join(launcher, 'Contents'), { recursive: true });
+  writeFileSync(join(launcher, 'Contents', 'Info.plist'), `<string>${LAUNCHER_ID}</string>`);
   execFileSync(process.execPath, [CLI, 'bar', 'off'], { encoding: 'utf8', timeout: 60_000, env });
   assert.equal(JSON.parse(readFileSync(join(data, 'config.json'), 'utf8')).bar, false);
+  assert.equal(existsSync(launcher), false, 'bar off removes the launcher');
   hook(env);
   assert.equal(existsSync(join(data, 'bar-build.json')), false, 'a turned-off bar does not even probe the toolchain');
 });

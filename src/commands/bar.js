@@ -145,7 +145,7 @@ export function renderText(snapshot) {
   for (const g of limitGroups(snapshot)) head += ` · ${g.name} ${g.words.join(' ')}`;
   const cells = sessions.map((r) => ({
     dot: dot(r.state),
-    name: fit(r.name, NAME_WIDTH),
+    name: fit(r.title ?? r.name, NAME_WIDTH),
     agent: agentText(r),
     state: stateText(r, snapshot.at),
     activity: fit(activityLabel(r), ACTIVITY_WIDTH),
@@ -182,7 +182,7 @@ export function renderSwiftBar(snapshot) {
     out.push('No agent sessions running');
   } else {
     for (const r of sessions) {
-      const parts = [r.name, agentText(r), stateText(r, snapshot.at)];
+      const parts = [r.title ?? r.name, agentText(r), stateText(r, snapshot.at)];
       const label = activityLabel(r);
       if (label) parts.push(label);
       for (const extra of [ctxText(r), costText(r)]) if (extra) parts.push(extra);
@@ -244,6 +244,7 @@ async function runSubcommand(sub, { hasFlag, deps }) {
   if (sub === 'off') {
     bar.setBarEnabled(false);
     bar.stopBar(barDeps);
+    bar.removeLauncher(barDeps);
     say('✓ The menu bar app is off and will not be started again. `sprag bar on` brings it back.',
       '✓ 메뉴 막대 앱을 껐고 다시 시작하지 않습니다. 다시 켜려면 `sprag bar on` 을 실행하십시오.');
     return;
@@ -255,6 +256,7 @@ async function runSubcommand(sub, { hasFlag, deps }) {
     const paths = bar.barPaths(barDeps);
     const running = bar.barRunning(barDeps);
     if (running && running.version === paths.version) {
+      bar.installLauncher({ ...barDeps, platform });
       say(`✓ The menu bar app is already running (pid ${running.pid}, build ${running.version}).`,
         `✓ 메뉴 막대 앱이 이미 실행 중입니다 (pid ${running.pid}, 빌드 ${running.version}).`);
       return;
@@ -279,6 +281,8 @@ async function runSubcommand(sub, { hasFlag, deps }) {
     }
     bar.launchBar(barDeps);
     say('✓ The menu bar app is in the menu bar.', '✓ 메뉴 막대에 앱을 띄웠습니다.');
+    say('Open "Sprag Bar" from Spotlight or Launchpad to start it again later.',
+      '나중에 다시 켤 때는 Spotlight나 Launchpad에서 Sprag Bar를 여십시오.');
     return;
   }
 
@@ -325,6 +329,11 @@ async function runSubcommand(sub, { hasFlag, deps }) {
       swiftc ? `Swift 도구: 있음 (${swiftc})` : 'Swift 도구: 없음 (xcode-select --install)');
   } else {
     say('Swift toolchain: not needed, the app only works on macOS', 'Swift 도구: 필요 없음, 앱은 macOS에서만 동작합니다');
+  }
+  if (exists(paths.launcher)) {
+    say(`Launcher app: yes (${paths.launcher})`, `응용 프로그램 실행기: 있음 (${paths.launcher})`);
+  } else {
+    say('Launcher app: no', '응용 프로그램 실행기: 없음');
   }
   const state = bar.readBuildState(barDeps);
   if (state?.error) {

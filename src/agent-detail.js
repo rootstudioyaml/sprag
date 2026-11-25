@@ -209,6 +209,47 @@ function scanBack(fd, lo, hi, chunkBytes) {
 }
 
 /**
+ * The two lines Claude Code writes to name a session in its own picker: the last
+ * typed prompt (`last-prompt`, rewritten every turn) and a title it makes from the
+ * opening topic (`ai-title`, absent in a brand new session). Only the last
+ * `tailBytes` are read, and a line is parsed only when it carries one of the two
+ * type markers; the newest of each wins. Never throws.
+ *
+ * @returns {{ lastPrompt: string|null, aiTitle: string|null }}
+ */
+export function sessionTitleHints({ transcript, tailBytes = TRANSCRIPT_TAIL } = {}) {
+  const out = { lastPrompt: null, aiTitle: null };
+  if (typeof transcript !== 'string' || transcript === '') return out;
+  let fd;
+  try {
+    fd = openSync(transcript, 'r');
+    const size = fstatSync(fd).size;
+    if (size <= 0) return out;
+    const tailStart = Math.max(0, size - tailBytes);
+    const lines = readRange(fd, tailStart, size - tailStart).toString('utf8').split('\n');
+    if (tailStart > 0) lines.shift();
+    for (const line of lines) {
+      const isPrompt = line.includes('"type":"last-prompt"');
+      const isTitle = !isPrompt && line.includes('"type":"ai-title"');
+      if (!isPrompt && !isTitle) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (!entry || typeof entry !== 'object') continue;
+        if (isPrompt && entry.type === 'last-prompt' && typeof entry.lastPrompt === 'string') out.lastPrompt = entry.lastPrompt;
+        if (isTitle && entry.type === 'ai-title' && typeof entry.aiTitle === 'string') out.aiTitle = entry.aiTitle;
+      } catch { /* partial or foreign line */ }
+    }
+    return out;
+  } catch {
+    return { lastPrompt: null, aiTitle: null };
+  } finally {
+    if (fd !== undefined) {
+      try { closeSync(fd); } catch { /* nothing to release */ }
+    }
+  }
+}
+
+/**
  * The newest typed request, the newest text reply and the last 12 tool calls of
  * a transcript. Never throws.
  *

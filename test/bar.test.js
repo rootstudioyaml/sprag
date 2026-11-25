@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, utimesSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
-  parsePs, readClaudeSessions, pendingTools, collectActivity, PS_ARGS,
+  parsePs, readClaudeSessions, pendingTools, collectActivity, PS_ARGS, pickTitle,
 } from '../src/agent-activity.js';
 import {
   formatDuration, formatMem, formatTokens, formatUsd, activityLabel, renderText, renderSwiftBar, pluginScript, run,
@@ -18,7 +18,7 @@ import { encodeProjectDir } from '../src/commands/panel.js';
 import { peekCached } from '../src/session-cache.js';
 import { windowLabel } from '../src/window-labels.js';
 import { estimateCost } from '../src/cost.js';
-import { toolTarget, sessionDetail } from '../src/agent-detail.js';
+import { toolTarget, sessionDetail, sessionTitleHints } from '../src/agent-detail.js';
 import { collectSettings } from '../src/bar-settings.js';
 import { collectRules } from '../src/bar-rules.js';
 import { currentWarnings, QUIET_CHIPS } from '../src/agent-warnings.js';
@@ -173,7 +173,7 @@ test('a codex process with no codex or Claude session above it is one row, and i
   const snap = collect(t, { claudeDir, ps: () => parsePs(PS_TEXT), now: NOW, readChip: noChip });
   assert.equal(snap.sessions.length, 1);
   assert.deepEqual(snap.sessions[0], {
-    agent: 'codex', pid: 400, sessionId: null, name: 'codex', project: null, cwd: null, kind: null,
+    agent: 'codex', pid: 400, sessionId: null, name: 'codex', title: null, project: null, cwd: null, kind: null,
     state: null, stateSince: null, tools: [], subagents: 0,
     model: null, modelName: null, effort: null, context: null, usage: null,
     cpu: 4.5, cpuPct: 1.1, rssMb: 55, procs: 3,
@@ -1313,6 +1313,114 @@ test('sessionDetail with a known earlier result scans only what was written sinc
   // A file smaller than the known size is a different file: scanned afresh.
   const smaller = sessionDetail({ transcript, tailBytes: 30_000, known: { size: 1e9, prompt: cached } });
   assert.equal(smaller.prompt.text, 'ancient request');
+});
+
+test('pickTitle: a /rename name, then a substantial prompt, then the topic title, then any prompt', () => {
+  const derived = { name: 'proj-6b', nameSource: 'derived' };
+  // 1. A name the user gave wins over everything.
+  assert.equal(pickTitle({ name: ' my work ', nameSource: 'user' }, { lastPrompt: '해커뉴스 확인', aiTitle: 'topic' }), 'my work');
+  assert.equal(pickTitle({ name: 'proj-6b' }, { lastPrompt: '해커뉴스 확인' }), '해커뉴스 확인');
+  assert.equal(pickTitle({ name: '  ', nameSource: 'user' }, { lastPrompt: '해커뉴스 확인' }), '해커뉴스 확인');
+  // 2. A prompt of 5 or more characters, spaces not counted.
+  assert.equal(pickTitle(derived, { lastPrompt: '해커뉴스 확인', aiTitle: '앱 배포' }), '해커뉴스 확인');
+  assert.equal(pickTitle(derived, { lastPrompt: 'a b c d', aiTitle: 'topic' }), 'topic');
+  assert.equal(pickTitle(derived, { lastPrompt: 'a b c d e', aiTitle: 'topic' }), 'a b c d e');
+  // 3. A short prompt gives way to the topic title.
+  assert.equal(pickTitle(derived, { lastPrompt: '승인완료', aiTitle: '앱 배포' }), '앱 배포');
+  assert.equal(pickTitle(derived, { lastPrompt: '/compact please do it now', aiTitle: '앱 배포' }), '앱 배포');
+  assert.equal(pickTitle(derived, { lastPrompt: '<command-name>x</command-name> more text', aiTitle: 'topic' }), 'topic');
+  // 4. Without a topic title the short prompt is still better than the folder name.
+  assert.equal(pickTitle(derived, { lastPrompt: '승인완료' }), '승인완료');
+  assert.equal(pickTitle(derived, { lastPrompt: '/compact', aiTitle: null }), '/compact');
+  // 5. Nothing to show.
+  assert.equal(pickTitle(derived, {}), null);
+  assert.equal(pickTitle(derived, { lastPrompt: '  \n ', aiTitle: '' }), null);
+  assert.equal(pickTitle(derived, { lastPrompt: 42, aiTitle: {} }), null);
+  assert.equal(pickTitle(null, undefined), null);
+  // The first non-blank line, with runs of white space collapsed.
+  assert.equal(pickTitle(derived, { lastPrompt: '\n\n  fix   the\ttitle  bug \nsecond line' }), 'fix the title bug');
+  // 80 code points at most, then an ellipsis.
+  const long = 'x'.repeat(100);
+  assert.equal(pickTitle(derived, { lastPrompt: long }), `${'x'.repeat(80)}…`);
+  assert.equal(pickTitle(derived, { lastPrompt: 'x'.repeat(80) }), 'x'.repeat(80));
+  assert.equal(Array.from(pickTitle(derived, { lastPrompt: '가'.repeat(90) })).length, 81);
+  assert.equal(pickTitle({ name: long, nameSource: 'user' }, {}), `${'x'.repeat(80)}…`);
+});
+
+test('sessionTitleHints returns the newest last-prompt and ai-title, and null for a missing file', (t) => {
+  const claudeDir = tmp(t);
+  const line = (o) => JSON.stringify(o);
+  const file = writeTranscript(claudeDir, 'sid-h', [
+    line({ type: 'ai-title', aiTitle: 'first topic', sessionId: 'sid-h' }),
+    line({ type: 'last-prompt', lastPrompt: 'first prompt', leafUuid: 'a' }),
+    filler(),
+    line({ type: 'ai-title', aiTitle: 'second topic', sessionId: 'sid-h' }),
+    line({ type: 'last-prompt', lastPrompt: 'second prompt', leafUuid: 'b' }),
+    line({ type: 'last-prompt', lastPrompt: 123, leafUuid: 'c' }),
+    '{"type":"last-prompt","lastPrompt": broken',
+  ]);
+  assert.deepEqual(sessionTitleHints({ transcript: file }), { lastPrompt: 'second prompt', aiTitle: 'second topic' });
+  assert.deepEqual(sessionTitleHints({ transcript: join(claudeDir, 'missing.jsonl') }), { lastPrompt: null, aiTitle: null });
+  assert.deepEqual(sessionTitleHints({ transcript: '' }), { lastPrompt: null, aiTitle: null });
+  assert.deepEqual(sessionTitleHints({}), { lastPrompt: null, aiTitle: null });
+  // A transcript with neither line.
+  const bare = writeTranscript(claudeDir, 'sid-bare', [filler()]);
+  assert.deepEqual(sessionTitleHints({ transcript: bare }), { lastPrompt: null, aiTitle: null });
+});
+
+test('sessionTitleHints reads only the tail and drops the cut first line', (t) => {
+  const claudeDir = tmp(t);
+  const line = (o) => JSON.stringify(o);
+  const tail = line({ type: 'last-prompt', lastPrompt: 'newest prompt', leafUuid: 'z' });
+  const file = writeTranscript(claudeDir, 'sid-t', [
+    line({ type: 'ai-title', aiTitle: 'old topic that is out of the tail', sessionId: 'sid-t' }),
+    filler(2000),
+    tail,
+  ]);
+  // The window is the last line plus a few bytes of the filler: the cut filler line is dropped, the old title is out of reach.
+  const hints = sessionTitleHints({ transcript: file, tailBytes: tail.length + 40 });
+  assert.deepEqual(hints, { lastPrompt: 'newest prompt', aiTitle: null });
+  // A window that starts in the middle of a last-prompt line must not report it.
+  const cutAt = tail.length + 1 - 10;
+  assert.deepEqual(sessionTitleHints({ transcript: file, tailBytes: cutAt + 1 }), { lastPrompt: null, aiTitle: null });
+  // A big window sees both.
+  assert.deepEqual(sessionTitleHints({ transcript: file }), { lastPrompt: 'newest prompt', aiTitle: 'old topic that is out of the tail' });
+});
+
+test('collectActivity gives a claude row a title from its transcript, and the row order keeps following name', (t) => {
+  const claudeDir = tmp(t);
+  writeSession(claudeDir, 100, { name: 'proj-1', nameSource: 'derived' });
+  writeSession(claudeDir, 200, { name: 'proj-2', nameSource: 'derived' });
+  writeSession(claudeDir, 300, { name: 'renamed', nameSource: 'user' });
+  writeSession(claudeDir, 600, { name: 'proj-4', nameSource: 'derived', cwd: null });
+  writeTranscript(claudeDir, 'sid-100', [
+    JSON.stringify({ type: 'last-prompt', lastPrompt: 'check the hacker news digest', leafUuid: 'a' }),
+    JSON.stringify({ type: 'ai-title', aiTitle: 'digest work', sessionId: 'sid-100' }),
+  ]);
+  writeTranscript(claudeDir, 'sid-200', [
+    JSON.stringify({ type: 'last-prompt', lastPrompt: 'ok', leafUuid: 'a' }),
+    JSON.stringify({ type: 'ai-title', aiTitle: 'release prep', sessionId: 'sid-200' }),
+  ]);
+  const ps = () => parsePs(['100 1 0.0 1 claude', '200 1 0.0 1 claude', '300 1 0.0 1 claude', '600 1 0.0 1 claude'].join('\n'));
+  const snap = collect(t, { claudeDir, ps });
+  const by = (pid) => snap.sessions.find((s) => s.pid === pid);
+  assert.equal(by(100).title, 'check the hacker news digest');
+  assert.equal(by(200).title, 'release prep');
+  assert.equal(by(300).title, 'renamed'); // no transcript: the name the user gave
+  assert.equal(by(600).title, null);      // no transcript and a derived name
+  assert.equal(by(100).name, 'proj-1');
+  assert.deepEqual(snap.sessions.map((s) => s.name), ['proj-1', 'proj-2', 'proj-4', 'renamed']);
+});
+
+test('renderText and renderSwiftBar show the title where the name was, and the name when there is no title', () => {
+  const s = snapshot();
+  const titled = { ...s, sessions: [{ ...s.sessions[0], title: 'check the digest' }] };
+  assert.match(renderText(titled).split('\n')[1], /check the digest/);
+  assert.doesNotMatch(renderText(titled), /proj-1a/);
+  assert.match(renderSwiftBar(titled), /check the digest/);
+  const bare = { ...s, sessions: [{ ...s.sessions[0], title: null }] };
+  assert.match(renderText(bare).split('\n')[1], /proj-1a/);
+  assert.match(renderSwiftBar(bare), /proj-1a/);
 });
 
 test('collectActivity with detail keeps the request it found in bar-prompts.json, and writes nothing without detail', (t) => {

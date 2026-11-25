@@ -36,7 +36,12 @@ struct Session: Decodable, Identifiable {
     let cpu: Double?; let rssMb: Double?; let procs: Int?
     let cpuPct: Double?; let model: String?; let modelName: String?; let effort: String?; let context: Ctx?; let usage: SUsage?
     let compactions: Int?   // times the conversation was compacted; optional so a snapshot from an older sprag still decodes
+    let title: String?      // what the session is about (rename, last prompt, topic); optional so a snapshot from an older sprag still decodes
     var id: Int { pid }
+    /** What a row calls the session: its title, else Claude Code's own name, which is often the folder plus a number. */
+    var label: String { if let t = title, !t.isEmpty { return t }; return name ?? agent }
+    /** The tooltip form: the title and the name under it, or one of them when they are the same. */
+    var fullName: String { let n = name ?? agent; return label == n ? n : label + "\n" + n }
 }
 struct Totals: Decodable { let sessions: Int; let busy: Int; let subagents: Int; let cpu: Double?; let rssMb: Double?; let procs: Int?; let costUsd: Double? }
 struct Animal: Decodable { let grade: String; let emoji: String }
@@ -683,7 +688,7 @@ final class Model: ObservableObject {
         for s in sessions {
             let mine = gpuUse.filter { $0.session == s.pid }
             guard !mine.isEmpty else { continue }
-            out.append(GpuLine(id: "s\(s.pid)", label: s.name ?? s.agent, note: mine.prefix(2).map { $0.name }.joined(separator: ", "), share: min(1, mine.reduce(0) { $0 + $1.share }), agent: s.agent, pid: s.pid))
+            out.append(GpuLine(id: "s\(s.pid)", label: s.label, note: mine.prefix(2).map { $0.name }.joined(separator: ", "), share: min(1, mine.reduce(0) { $0 + $1.share }), agent: s.agent, pid: s.pid))
         }
         for u in gpuUse where u.session == nil { out.append(GpuLine(id: "p\(u.pid)", label: u.name, note: u.left ? "끝난 세션이 남긴 것" : "", share: u.share, agent: u.left ? "left" : nil)) }
         return Array(out.sorted { $0.share > $1.share }.prefix(n))
@@ -1686,7 +1691,7 @@ struct SessionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center, spacing: 6) {
                 Badge(agent: s.agent)
-                Text(s.name ?? s.agent).font(.system(size: 13, weight: .semibold)).lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Text(s.label).font(.system(size: 13, weight: .semibold)).lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 6)
                 if let c = s.usage?.costUsd { Text(String(format: "$%.2f", c)).font(.system(size: 12.5, weight: .medium)).monospacedDigit().fixedSize().help("이 세션의 비용, 정가 환산") }
             }
@@ -2281,7 +2286,7 @@ struct SessionView: View {
             if let s = s {
                 FitScroll(limit: limit - 70, still: still) {
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 7) { Badge(agent: s.agent); Text(s.name ?? s.agent).font(.system(size: 15, weight: .semibold)).lineLimit(1).truncationMode(.middle) }
+                        HStack(spacing: 7) { Badge(agent: s.agent); Text(s.label).font(.system(size: 15, weight: .semibold)).lineLimit(1).truncationMode(.middle) }
                         if let c = s.cwd { Text(c).font(.system(size: 10.5, design: .monospaced)).foregroundColor(.secondary).lineLimit(1).truncationMode(.head).textSelection(.enabled) }
                         HStack(spacing: 6) { Circle().fill(stateColor(s)).frame(width: 7, height: 7); Text(activity(s, now: now)).font(.system(size: 12)) }
                         Divider().padding(.vertical, 2)
@@ -2476,7 +2481,7 @@ struct SubTile: View {
         HStack(spacing: 7) {
             Image(systemName: "arrow.turn.down.right").font(.system(size: 10, weight: .semibold)).foregroundColor(pal.text2)
             if phase == .active { LiveDot(color: edge) } else { Image(systemName: mark.symbol).font(.system(size: 10.5)).foregroundColor(phase == .idle ? pal.text2 : edge).frame(width: 12) }
-            Text(s.name ?? s.agent).font(.system(size: 12, weight: .medium)).foregroundColor(pal.text).lineLimit(1).truncationMode(.head)
+            Text(s.label).font(.system(size: 12, weight: .medium)).foregroundColor(pal.text).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 4)
             Text("\(mark.label) \(sinceText(s.stateSince, now: now))").font(.system(size: 10.5)).foregroundColor(pal.text2).lineLimit(1).fixedSize()
             if let c = s.context { Text(c.pct.map { "\(Int($0))%" } ?? tokText(c.tokens)).font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(pal.text).fixedSize().help("컨텍스트") }
@@ -2519,7 +2524,7 @@ struct SessionTile: View {
             HStack(spacing: 7) {
                 Text(s.agent == "codex" ? "Codex" : "Claude").font(.system(size: 9.5, weight: .bold)).foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(tint)).fixedSize()
                 if let up = parentName { Image(systemName: "arrow.turn.down.right").font(.system(size: 10.5, weight: .semibold)).foregroundColor(pal.text2).help("\(up) 세션이 띄운 세션") }
-                Text(s.name ?? s.agent).font(.system(size: 13.5, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).truncationMode(.middle).help(s.name ?? s.agent)
+                Text(s.label).font(.system(size: 13.5, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).truncationMode(.middle).help(s.fullName)
                 Spacer(minLength: 6)
             }
             HStack(spacing: 5) {
@@ -2854,7 +2859,7 @@ struct DashboardView: View {
     func inspector(_ s: Session, _ snap: Snapshot, _ pal: Pal) -> some View {
         let body = VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 7) {
-                Text(s.name ?? s.agent).font(.system(size: 15, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                Text(s.label).font(.system(size: 15, weight: .semibold)).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 6)
                 Button(action: { jump(to: s) }) { HStack(spacing: 4) { Image(systemName: "arrow.up.forward.app"); Text("세션으로 이동") }.font(.system(size: 11.5, weight: .medium)).padding(.horizontal, 8).padding(.vertical, 4).background(RoundedRectangle(cornerRadius: 6).fill(pal.well)).contentShape(Rectangle()) }
                     .buttonStyle(HoverStyle(radius: 6)).help("이 세션이 열려 있는 터미널 앱을 앞으로 가져옵니다")
@@ -2970,7 +2975,7 @@ struct DashboardView: View {
         let sm = model.samples, ses = snap.sessions
         let cpu = cpuSplit(snap, pal), mem = memSplit(snap, pal)
         func tops(_ pick: (AppLoad) -> Double, _ of: (Session) -> Double, _ part: (Work) -> Double, _ show: (Double) -> String) -> [Top] {
-            var t = ses.map { s in Top(id: "s\(s.pid)", name: s.name ?? s.agent, value: of(s), color: pal.agent(s.agent), pid: s.pid, program: heaviest(s, total: of(s), part, show), doing: doingNow(s)) }
+            var t = ses.map { s in Top(id: "s\(s.pid)", name: s.label, value: of(s), color: pal.agent(s.agent), pid: s.pid, program: heaviest(s, total: of(s), part, show), doing: doingNow(s)) }
             t += model.leftoverItems.map { Top(id: "l\($0.id)", name: $0.name, value: pick($0), color: pal.left, origin: leftOrigin($0.id)) }
             t += model.others.map { Top(id: "o\($0.id)", name: $0.name, value: pick($0), color: pal.neutral, origin: "세션과 무관한 프로그램", originSymbol: "macwindow") }
             return Array(t.sorted { $0.value > $1.value }.prefix(5))
@@ -3079,7 +3084,7 @@ struct DashboardView: View {
         let gap: CGFloat = 12, minCell: CGFloat = 318
         let cols = max(1, Int((width + gap) / (minCell + gap)))
         let cell = (width - CGFloat(cols - 1) * gap) / CGFloat(cols)
-        let names = Dictionary(snap.sessions.map { ($0.pid, $0.name ?? $0.agent) }, uniquingKeysWith: { a, _ in a })
+        let names = Dictionary(snap.sessions.map { ($0.pid, $0.label) }, uniquingKeysWith: { a, _ in a })
         // A group is as wide as its main sessions need, and at least wide enough to lay its started sessions side by side.
         let isSub: (Session, SessionGroup) -> Bool = { s, g in model.parentSession[s.pid].map { up in g.sessions.contains { $0.pid == up } } ?? false }
         let spanOf: (SessionGroup) -> Int = { g in
@@ -3157,7 +3162,7 @@ struct DashboardView: View {
         let ph = model.phase(s), tint = pal.state(ph), mark = stateMark(s)
         let byLoad = ph == .active && s.state != "busy" && s.state != "shell" && s.subagents == 0
         let pending = (s.detail?.recent ?? []).last { $0.pending == true }
-        let name = Text(s.name ?? s.agent).font(.system(size: 12.5, weight: .semibold)).foregroundColor(pal.text)
+        let name = Text(s.label).font(.system(size: 12.5, weight: .semibold)).foregroundColor(pal.text)
         let row = VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: dense ? .top : .center, spacing: 6) {
                 if ph == .active { LiveDot(color: tint) } else { Image(systemName: mark.symbol).font(.system(size: 11)).foregroundColor(tint).frame(width: 12) }
@@ -3213,7 +3218,7 @@ struct DashboardView: View {
     }
     /** A session resting at its prompt: one quiet line. */
     func idleRow(_ s: Session, _ snap: Snapshot, _ pal: Pal, dense: Bool, pick: @escaping (Session) -> Void) -> some View {
-        let name = Text(s.name ?? s.agent).font(.system(size: 12)).foregroundColor(pal.text2)
+        let name = Text(s.label).font(.system(size: 12)).foregroundColor(pal.text2)
         return Pressable(radius: 6, action: { pick(s) }) {
             HStack(alignment: dense ? .top : .center, spacing: 6) {
                 Image(systemName: "pause.circle").font(.system(size: 11)).foregroundColor(pal.text2).frame(width: 12)
@@ -3607,6 +3612,16 @@ final class FloatPanel: NSPanel { override var canBecomeKey: Bool { true } }
  * species that runs in the menu bar. It is one still frame, redrawn only when the grade changes; a running Dock icon
  * would spend CPU and pull the eye away from the dashboard. Drawn on the macOS icon grid (an 824 square in 1024).
  */
+/**
+ * Give the launcher bundle the CLI writes (~/Applications/Sprag Bar.app, src/bar-app.js installLauncher) the same icon
+ * as the Dock, so Spotlight and Launchpad show the runner instead of a blank app. Only a bundle whose Info.plist names
+ * the launcher's id is touched; a missing one is left for the CLI to write.
+ */
+func paintLauncher(_ icon: NSImage) {
+    let path = NSHomeDirectory() + "/Applications/Sprag Bar.app"
+    guard let plist = try? String(contentsOfFile: path + "/Contents/Info.plist", encoding: .utf8), plist.contains("io.sprag.bar-launcher") else { return }
+    NSWorkspace.shared.setIcon(icon, forFile: path, options: [])
+}
 func dockIcon(_ grade: String?) -> NSImage {
     let sp = runnerSpecies(grade)
     // a frame that reads as that animal at rest in motion: wings up for fliers, mid-leap for the frog, a stride otherwise
@@ -3789,9 +3804,13 @@ final class App: NSObject {
         b.toolTip = model.sysCpu != nil ? String(format: "기기 전체 CPU %.0f%%, 그중 AI 세션 %.0f%%. 세션 %d개 실행 중", (model.sysCpu ?? 0) * 100, model.share(nil), s.totals.sessions) : "작업 중인 세션 수 / 실행 중인 세션 수"
     }
     var dockGrade: String? = nil   // the grade the Dock icon was drawn for
+    var launcherGrade: String?? = .none   // the grade the launcher's icon was drawn for, .none until the first snapshot
     func animate() {
         if NSApp.activationPolicy() == .regular, model.snap?.animal?.grade != dockGrade {
             dockGrade = model.snap?.animal?.grade; NSApp.applicationIconImage = dockIcon(dockGrade)
+        }
+        if selftest == nil, let snap = model.snap, launcherGrade != .some(snap.animal?.grade) {
+            launcherGrade = .some(snap.animal?.grade); paintLauncher(dockIcon(snap.animal?.grade))
         }
         // RunCat's rule, on the same thing RunCat measures: the whole machine. A runner that strolls while the machine is
         // flat out, because the agent sessions' own share happens to be small, reads as wrong.
@@ -4096,8 +4115,8 @@ func dashboardTest(_ prefix: String) {
         if let icon = NSApp.applicationIconImage { png(icon, "\(prefix)-dock.png") }
         print("DOCK icon drawn for grade \(main.dockGrade ?? "none") (species \(runnerSpecies(main.dockGrade).id))")
         print("DOCK regular app while the dashboard is open: \(NSApp.activationPolicy() == .regular) | icon set \(NSApp.applicationIconImage != nil) | menu \(NSApp.mainMenu != nil) | reopen handler \(NSApp.delegate is App)")
-        print("STARTED BY " + (m.parentSession.isEmpty ? "none" : m.parentSession.map { c, up in "\(m.snap?.sessions.first { $0.pid == c }?.name ?? "\(c)") <- \(m.snap?.sessions.first { $0.pid == up }?.name ?? "\(up)")" }.sorted().joined(separator: " | ")))
-        print("PHASE " + (m.snap?.sessions ?? []).map { s in "\(s.name ?? s.agent) \(m.phase(s)) [" + m.working(s, max: 3).map { "\($0.name) cpu \(pct1($0.w.cpu * 100)) gpu \(pct1($0.w.gpu * 100)) \(memText($0.w.mem))" }.joined(separator: "; ") + "]" }.joined(separator: " | "))
+        print("STARTED BY " + (m.parentSession.isEmpty ? "none" : m.parentSession.map { c, up in "\(m.snap?.sessions.first { $0.pid == c }?.label ?? "\(c)") <- \(m.snap?.sessions.first { $0.pid == up }?.label ?? "\(up)")" }.sorted().joined(separator: " | ")))
+        print("PHASE " + (m.snap?.sessions ?? []).map { s in "\(s.label) \(m.phase(s)) [" + m.working(s, max: 3).map { "\($0.name) cpu \(pct1($0.w.cpu * 100)) gpu \(pct1($0.w.gpu * 100)) \(memText($0.w.mem))" }.joined(separator: "; ") + "]" }.joined(separator: " | "))
         render(DashboardView(model: m, still: true).frame(width: 1480), "\(prefix)-dashboard-dark.png")
         render(DashboardView(model: m, still: true, width: 340).frame(width: 340), "\(prefix)-dashboard-mini-dark.png")
         render(DashboardView(model: m, still: true, width: 780).frame(width: 780), "\(prefix)-dashboard-medium-dark.png")
@@ -4111,8 +4130,8 @@ func dashboardTest(_ prefix: String) {
         let oth = m.others.reduce(Load()) { var l = $0; l.cpu += $1.cpu; l.mem += $1.mem; l.n += $1.n; return l }
         print("CENSUS machine CPU \(pct1((m.sysCpu ?? 0) * 100)) mem \(memText(m.sysMemMb)) | session trees \(pct1(tree.cpu * 100)) \(memText(tree.mem)) (\(tree.n)) | detached \(pct1(det.cpu * 100)) \(memText(det.mem)) (\(det.n)) | left by ended sessions \(pct1(m.leftover.cpu * 100)) \(memText(m.leftover.mem)) (\(m.leftover.n)) | other programs \(pct1(oth.cpu * 100)) \(memText(oth.mem)) (\(oth.n))")
         print("CENSUS CLI figures for the same sessions: CPU \(pct1((m.snap?.sessions ?? []).reduce(0) { $0 + Model.raw($1) })) mem \(memText((m.snap?.sessions ?? []).reduce(0) { $0 + ($1.rssMb ?? 0) })) | leftover kinds \(m.leftoverItems.count) | other apps \(m.others.count)")
-        print("CPUOF " + (m.snap?.sessions ?? []).map { "\($0.name ?? $0.agent) \(pct1(m.cpuOf($0))) \(memText(m.memOf($0)))" }.joined(separator: " | "))
-        print("JUMP " + (m.snap?.sessions ?? []).map { "\($0.name ?? $0.agent) opens \(owningApp($0.pid)?.localizedName ?? "nothing found")\(exactTab($0) == nil ? ", app only" : ", its own tab")" }.joined(separator: " | ") + " | responsible-process lookup \(RESPONSIBLE == nil ? "missing" : "present")")
+        print("CPUOF " + (m.snap?.sessions ?? []).map { "\($0.label) \(pct1(m.cpuOf($0))) \(memText(m.memOf($0)))" }.joined(separator: " | "))
+        print("JUMP " + (m.snap?.sessions ?? []).map { "\($0.label) opens \(owningApp($0.pid)?.localizedName ?? "nothing found")\(exactTab($0) == nil ? ", app only" : ", its own tab")" }.joined(separator: " | ") + " | responsible-process lookup \(RESPONSIBLE == nil ? "missing" : "present")")
         print("LEFT " + m.leftoverItems.prefix(6).map { "\($0.name) x\($0.n) \(memText($0.mem))" }.joined(separator: " | "))
         print("OTHER " + m.others.sorted { $0.cpu > $1.cpu }.prefix(5).map { "\($0.name) \(pct1($0.cpu * 100)) \(memText($0.mem))" }.joined(separator: " | "))
         print("GROUPS " + groupSessions(m.snap?.sessions ?? [], parents: m.parentSession).map { "\($0.name) x\($0.sessions.count)" }.joined(separator: " | ") + " | started by another session \(m.parentSession.count)")

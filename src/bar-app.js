@@ -6,6 +6,9 @@
  * The first session on a Mac with the Xcode command line tools compiles it
  * once per sprag version into <dataDir>/bar/<version>/sprag-bar and starts it.
  * `sprag bar off` turns the whole thing off, and `sprag bar on` brings it back.
+ * Starting the app also writes a launcher, ~/Applications/Sprag Bar.app, a shell
+ * script bundle that runs `sprag bar on`, so Spotlight, Launchpad and Finder can
+ * bring the app back without a terminal.
  *
  * Every outside effect goes through an injectable dependency (run, spawn, kill,
  * exists, clock, dataDir, version), so the tests start no process and touch no
@@ -18,6 +21,7 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLI_ENTRY, DETACHED_CHILD_VAR, isDetachedChild, spawnDetachedCli } from './cli-entry.js';
@@ -39,6 +43,13 @@ const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
 const TRANSIENT_ERROR = /was modified during the build/i;
 const ERROR_TAIL = 600;
 const BINARY_NAME = 'sprag-bar';
+
+export const LAUNCHER_NAME = 'Sprag Bar.app';
+export const LAUNCHER_ID = 'io.sprag.bar-launcher';
+const LAUNCHER_EXECUTABLE = 'sprag-bar-launcher';
+const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister';
+/** What LaunchServices does not hand to an app it starts, and the app's data and config folders depend on. */
+const LAUNCHER_ENV_KEYS = ['XDG_CONFIG_HOME', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME'];
 
 /** The bar is on unless the user ran `sprag bar off`. */
 export function barEnabled(cfg = loadConfig()) {
@@ -71,9 +82,12 @@ export function barBuildId(source = BAR_SOURCE) {
 }
 
 /** `version` is the build id above; the name is kept because the app's pid file calls it that. */
-export function barPaths({ dataDir = userDataDir(), version = barBuildId() } = {}) {
+export function barPaths({ dataDir = userDataDir(), version = barBuildId(), appsDir, home } = {}) {
   const dir = join(dataDir, 'bar');
+  const apps = appsDir ?? join(home ?? homedir(), 'Applications');
   return {
+    appsDir: apps,
+    launcher: join(apps, LAUNCHER_NAME),
     dataDir,
     dir,
     version,
@@ -284,9 +298,114 @@ export function barChildEnv(env = process.env) {
   return out;
 }
 
+const shQuote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const xmlEscape = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+/**
+ * The two files of the launcher bundle. Opening the bundle runs `sprag bar on`.
+ * LaunchServices starts it without the user's shell environment, so the folders
+ * that decide where sprag keeps its data and finds Claude's settings are written
+ * into the script. A launcher without them would turn on a bar that reads other folders.
+ */
+export function launcherFiles({ execPath, cliEntry, env = {}, version }) {
+  const exportLines = LAUNCHER_ENV_KEYS
+    .filter((key) => typeof env?.[key] === 'string' && env[key] !== '')
+    .map((key) => `export ${key}=${shQuote(env[key])}`);
+  const script = [
+    '#!/bin/sh',
+    '# Written by sprag. Opening Sprag Bar runs `sprag bar on`, which turns the menu bar app on and starts it.',
+    ...exportLines,
+    `exec ${shQuote(execPath)} ${shQuote(cliEntry)} bar on`,
+    '',
+  ].join('\n');
+  const entries = [
+    ['CFBundleIdentifier', `<string>${xmlEscape(LAUNCHER_ID)}</string>`],
+    ['CFBundleName', '<string>Sprag Bar</string>'],
+    ['CFBundleDisplayName', '<string>Sprag Bar</string>'],
+    ['CFBundleExecutable', `<string>${LAUNCHER_EXECUTABLE}</string>`],
+    ['CFBundlePackageType', '<string>APPL</string>'],
+    ['CFBundleShortVersionString', `<string>${xmlEscape(version)}</string>`],
+    ['LSUIElement', '<true/>'],
+  ];
+  const plist = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    ...entries.flatMap(([key, value]) => [`  <key>${key}</key>`, `  ${value}`]),
+    '</dict>',
+    '</plist>',
+    '',
+  ].join('\n');
+  return { plist, script };
+}
+
+function launcherFilePaths(paths) {
+  return {
+    plist: join(paths.launcher, 'Contents', 'Info.plist'),
+    script: join(paths.launcher, 'Contents', 'MacOS', LAUNCHER_EXECUTABLE),
+  };
+}
+
+/** The text of a file, or null when it cannot be read. */
+function readText(file) {
+  try { return readFileSync(file, 'utf8'); } catch { return null; }
+}
+
+/**
+ * Write ~/Applications/Sprag Bar.app so Spotlight, Launchpad and Finder can start the app again.
+ * Never throws. Returns 'created', 'updated', 'unchanged', 'foreign' (a bundle or file of that name
+ * that is not ours is left alone), 'not-mac' or 'error'.
+ */
+export function installLauncher(deps = {}) {
+  try {
+    if ((deps.platform ?? process.platform) !== 'darwin') return 'not-mac';
+    const paths = barPaths(deps);
+    const files = launcherFilePaths(paths);
+    if (existsSync(paths.launcher) && !statSync(paths.launcher).isDirectory()) return 'foreign';
+    const oldPlist = readText(files.plist);
+    if (oldPlist !== null && !oldPlist.includes(LAUNCHER_ID)) return 'foreign';
+    const want = launcherFiles({
+      execPath: deps.execPath ?? process.execPath,
+      cliEntry: deps.cliEntry ?? CLI_ENTRY,
+      env: deps.env ?? process.env,
+      version: PKG_VERSION,
+    });
+    let executable = false;
+    try { executable = (statSync(files.script).mode & 0o111) !== 0; } catch { /* a missing script is rewritten */ }
+    if (oldPlist === want.plist && readText(files.script) === want.script && executable) return 'unchanged';
+    mkdirSync(join(paths.launcher, 'Contents', 'MacOS'), { recursive: true });
+    writeFileSync(files.plist, want.plist);
+    writeFileSync(files.script, want.script);
+    chmodSync(files.script, 0o755);
+    if (oldPlist !== null) return 'updated';
+    // A new bundle is registered once so Spotlight and Launchpad list it without waiting for their own scan.
+    try { runOf(deps)(LSREGISTER, ['-f', paths.launcher]); } catch { /* the bundle works without it */ }
+    return 'created';
+  } catch {
+    return 'error';
+  }
+}
+
+/** Delete the launcher, only when its Info.plist names our bundle id. True when it was deleted. Never throws. */
+export function removeLauncher(deps = {}) {
+  try {
+    const paths = barPaths(deps);
+    const plist = readText(launcherFilePaths(paths).plist);
+    if (plist === null || !plist.includes(LAUNCHER_ID)) return false;
+    rmSync(paths.launcher, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Start the compiled app detached from this process. The caller has checked the binary exists. */
 export function launchBar(deps = {}) {
   const paths = barPaths(deps);
+  // The launcher is a convenience: a failure to write it never keeps the app from starting.
+  try { installLauncher(deps); } catch { /* the app starts regardless */ }
   const spawn = deps.spawn ?? childProcess.spawn;
   const child = spawn(paths.binary, [
     '--node', deps.execPath ?? process.execPath,
@@ -335,12 +454,16 @@ export function ensureBar({ platform = process.platform, env = process.env, cfg,
     if (isDetachedChild(env)) return 'child';
     if (envVar('NO_BAR', env) === '1') return 'off';
     if (!barEnabled(cfg)) return 'off';
-    const d = { ...deps, env };
+    const d = { ...deps, env, platform };
     const paths = barPaths(d);
     let restart = false;
     const running = barRunning(d);
     if (running) {
-      if (running.version === paths.version) return 'running';
+      if (running.version === paths.version) {
+        // An app that stays up across upgrades would otherwise never get the launcher, or a launcher naming a new node.
+        installLauncher(d);
+        return 'running';
+      }
       stopBar(d);
       restart = true;
     }
@@ -363,10 +486,11 @@ export function ensureBar({ platform = process.platform, env = process.env, cfg,
   }
 }
 
-/** Uninstall: stop the app and delete everything this module wrote under the data directory. */
+/** Uninstall: stop the app and delete everything this module wrote under the data directory, and the launcher. */
 export function removeBarFiles(deps = {}) {
   const paths = barPaths(deps);
   try { stopBar(deps); } catch { /* the files go regardless */ }
+  removeLauncher(deps);
   for (const target of [paths.dir, paths.pidFile, paths.buildState, paths.buildLock]) {
     try { rmSync(target, { recursive: true, force: true }); } catch { /* best effort */ }
   }

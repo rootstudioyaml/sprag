@@ -30,6 +30,11 @@
  *   - Model, context window use, tokens, cost and the account limits come from
  *     agent-usage.js: the transcript tail, the statusline's caches in the user
  *     data folder, and the Codex rollout files.
+ *   - A Claude row's `title` is what tells sessions apart on screen, where `name`
+ *     is often the folder plus a number: a name given with /rename, else the last
+ *     prompt or Claude Code's topic title from the transcript tail (agent-detail.js
+ *     sessionTitleHints). null when there is none; Codex rows are always null.
+ *     Rows are still sorted by `name`, so a new prompt does not reorder them.
  *   - A Claude row's effort level is the one the statusline recorded in the user
  *     data folder (session-effort.js); Codex rows read theirs from the rollout.
  *   - With `detail`, each row also carries the session's latest typed request, its
@@ -58,7 +63,7 @@ import { loadCache } from './session-cache.js';
 import { codexUserDir } from './agent.js';
 import { userLanguage } from './config.js';
 import { readSessionEffort } from './session-effort.js';
-import { sessionDetail } from './agent-detail.js';
+import { sessionDetail, sessionTitleHints } from './agent-detail.js';
 import { writeStateFile } from './state-file.js';
 import { currentWarnings } from './agent-warnings.js';
 import {
@@ -246,6 +251,40 @@ function standingFor(st, { lang, org }) {
 const defaultCores = () => os.availableParallelism?.() ?? os.cpus().length;
 const dirName = (cwd) => (typeof cwd === 'string' && cwd ? basename(cwd) || null : null);
 
+const TITLE_MAX = 80;
+/** A prompt this short (spaces not counted) says little by itself: "ok", "승인완료". */
+const TITLE_MIN_CHARS = 5;
+
+function clipTitle(text) {
+  const chars = Array.from(text);
+  return chars.length > TITLE_MAX ? `${chars.slice(0, TITLE_MAX).join('')}…` : text;
+}
+
+/**
+ * What tells one session from another on screen. Claude Code names a session
+ * after its folder plus a number (`sprag-6b`, nameSource "derived"), which does
+ * not. In order: a name the user gave with /rename, the last prompt when it is
+ * substantial, Claude Code's own topic title, any last prompt, else null (the
+ * caller falls back to `name`). Pure; `hints` is sessionTitleHints()'s result.
+ *
+ * @param {{ name?: unknown, nameSource?: unknown }} file the session file
+ * @param {{ lastPrompt?: string|null, aiTitle?: string|null }} hints
+ * @returns {string|null}
+ */
+export function pickTitle(file, hints) {
+  const given = typeof file?.name === 'string' ? file.name.trim() : '';
+  if (typeof file?.nameSource === 'string' && file.nameSource !== 'derived' && given) return clipTitle(given);
+  const raw = typeof hints?.lastPrompt === 'string' ? hints.lastPrompt : '';
+  const firstLine = raw.split(/\r?\n/).find((l) => l.trim() !== '') ?? '';
+  const prompt = firstLine.replace(/\s+/g, ' ').trim();
+  const substantial = prompt !== '' && !prompt.startsWith('/') && !prompt.startsWith('<')
+    && Array.from(prompt.replace(/\s/g, '')).length >= TITLE_MIN_CHARS;
+  if (substantial) return clipTitle(prompt);
+  const ai = typeof hints?.aiTitle === 'string' ? hints.aiTitle.trim() : '';
+  if (ai) return clipTitle(ai);
+  return prompt ? clipTitle(prompt) : null;
+}
+
 function claudeRow(file, { claudeDir, dataDir, now, table, env, getCache, detail, promptCache }) {
   const cwd = typeof file.cwd === 'string' && file.cwd ? file.cwd : null;
   const project = dirName(cwd);
@@ -262,11 +301,14 @@ function claudeRow(file, { claudeDir, dataDir, now, table, env, getCache, detail
   const usage = claudeSessionDetail({ sessionId: file.sessionId, transcript, dataDir, cache: getCache(), env, now });
   let effort = null;
   try { effort = readSessionEffort(file.sessionId, { dir: dataDir }); } catch { effort = null; }
+  let title = null;
+  try { title = pickTitle(file, transcript ? sessionTitleHints({ transcript }) : {}); } catch { title = null; }
   const row = {
     agent: 'claude',
     pid: file.pid,
     sessionId: file.sessionId,
     name,
+    title,
     project,
     cwd,
     kind: typeof file.kind === 'string' ? file.kind : null,
@@ -358,7 +400,7 @@ export function collectActivity({
       }
       if (nested) continue;
       const row = {
-        agent: 'codex', pid: p.pid, sessionId: null, name: 'codex', project: null, cwd: null, kind: null,
+        agent: 'codex', pid: p.pid, sessionId: null, name: 'codex', title: null, project: null, cwd: null, kind: null,
         state: null, stateSince: null, tools: [], subagents: 0,
         model: null, modelName: null, effort: null, context: null, usage: null,
         cpu: 0, cpuPct: null, rssMb: 0, procs: 0,
