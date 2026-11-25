@@ -2,7 +2,8 @@
 //
 // A runner in the menu bar moves faster the more of the machine the agent sessions use. A click opens a panel with every
 // Claude Code and Codex session, the machine's CPU, memory and GPU split by who is using them, account limits, settings and
-// rules. The dashboard window shows the same at full size.
+// rules. The dashboard window has three sizes: wide shows a band of machine figures, every session's tile, what is running now
+// and the trends; middle the band and the tiles; narrow only the session list. The window's width picks the size.
 //
 // Session data comes from `sprag bar --json` (one child at a time, never overlapping). Machine totals, each process's CPU
 // time and memory footprint, and GPU time per process come from the kernel and the I/O registry. A setting is changed by
@@ -2576,12 +2577,51 @@ struct SessionTile: View {
             .contentShape(Rectangle())
     }
 }
-/** Every session on one screen, in a window of its own: numbers, meters, trend lines and icons. A session's text shows when its tile is clicked. */
+/** The dashboard's three layouts. The window's width alone picks one, so dragging the edge and pressing a preset agree. */
+enum DashSize: String, CaseIterable { case mini, medium, large
+    static func of(_ width: CGFloat) -> DashSize { width < 620 ? .mini : width < 1100 ? .medium : .large }
+    var label: String { self == .mini ? "작게" : self == .medium ? "중간" : "크게" }
+    var tip: String { self == .mini ? "세션 목록만 봅니다 (⌘1)" : self == .medium ? "세션 타일을 봅니다 (⌘2)" : "세션 타일과 지금 도는 것, 추이를 봅니다 (⌘3)" }
+}
+/**
+ * The height of the dashboard's transparent title bar. The window's view ignores the safe area SwiftUI keeps for that bar
+ * and every layout leaves this much itself, so a colour can run up behind the bar while the first row starts right under
+ * it. Keeping the safe area as well doubled the gap, which the narrow window cannot afford. The right column and the
+ * picked session's overlay start 10 points lower, level with the band: a scroll view that begins right at the bar is
+ * composited by the system in a way the self-test's capture cannot read, and the whole column came out blank there.
+ */
+let TITLE_BAR: CGFloat = 28
+/** What the title bar controls show: the layout the window is in, and whether it floats over other windows. */
+final class DashUI: ObservableObject { @Published var size: DashSize = .large; @Published var pinned = false }
+/** The three size buttons and the pin, in the title bar next to the traffic lights. Drawn like `Segments`, small enough for the standard title bar. */
+struct DashControls: View {
+    @ObservedObject var ui: DashUI
+    let pick: (DashSize) -> Void; let pin: () -> Void
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 1) {
+                ForEach(DashSize.allCases, id: \.self) { s in
+                    let on = ui.size == s
+                    Button(action: { if !on { pick(s) } }) {
+                        Text(s.label).font(.system(size: 11, weight: on ? .semibold : .regular)).lineLimit(1).fixedSize().padding(.horizontal, 7).frame(height: 18)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(on ? Color.primary.opacity(0.24) : Color.clear)).contentShape(Rectangle())
+                    }.buttonStyle(HoverStyle(radius: 4, off: on)).help(s.tip)
+                }
+            }.padding(2).background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.09)))
+            Button(action: pin) {
+                Image(systemName: ui.pinned ? "pin.fill" : "pin").font(.system(size: 11)).foregroundColor(ui.pinned ? Color.accentColor : Color.secondary).frame(width: 22, height: 22).contentShape(Rectangle())
+            }.buttonStyle(HoverStyle(radius: 5)).help(ui.pinned ? "다른 창 위에 고정했습니다. 누르면 풉니다" : "다른 창 위에 고정합니다")
+        }.padding(.horizontal, 8).frame(height: 24)
+    }
+}
+/** Every session on one screen, in a window of its own, in three sizes: wide shows tiles, what is running and the trends, middle the tiles, narrow only the session list. */
 struct DashboardView: View {
     @ObservedObject var model: Model
     var still = false
     var stillWidth: CGFloat = 1480
     var lit: Int? = nil     // draw this session's tile as if the pointer were on it, for a capture
+    var forcedDetail: Bool? = nil   // a capture says whether the machine detail is open; the window remembers it
+    @AppStorage("dashMachineDetail") private var detail = false
     @State private var selected: Int?
     @State private var hoverPid: Int?            // the session whose row in a largest-users list is under the pointer
     @State private var busyLeft: Set<String> = [] // leftover lines with an open connection: left unticked, something may be using them
@@ -2589,17 +2629,35 @@ struct DashboardView: View {
     @State private var picked: Set<String> = []
     @State private var cleanNote = ""
     @Environment(\.colorScheme) private var scheme
-    init(model: Model, still: Bool = false, preselect: Int? = nil, width: CGFloat = 1480, lit: Int? = nil, cleaning: Bool = false) { self.model = model; self.still = still; self.stillWidth = width; self.lit = lit; if cleaning { let ids = model.leftoverItems.map { $0.id }.filter { !model.leftoverShared.contains($0) }; let busy = model.leftoverBusy(ids); _cleaning = State(initialValue: true); _busyLeft = State(initialValue: busy); _picked = State(initialValue: Set(ids.filter { !busy.contains($0) })) }; _selected = State(initialValue: preselect) }
+    private var showDetail: Bool { still ? (forcedDetail ?? false) : detail }
+    init(model: Model, still: Bool = false, preselect: Int? = nil, width: CGFloat = 1480, lit: Int? = nil, cleaning: Bool = false, detail: Bool? = nil) { self.model = model; self.still = still; self.stillWidth = width; self.lit = lit; self.forcedDetail = detail; if cleaning { let ids = model.leftoverItems.map { $0.id }.filter { !model.leftoverShared.contains($0) }; let busy = model.leftoverBusy(ids); _cleaning = State(initialValue: true); _busyLeft = State(initialValue: busy); _picked = State(initialValue: Set(ids.filter { !busy.contains($0) })) }; _selected = State(initialValue: preselect) }
     func key(_ c: Color, _ t: String, _ pal: Pal) -> some View { HStack(spacing: 3) { Circle().fill(c).frame(width: 6, height: 6); Text(t).font(.system(size: 10)).foregroundColor(pal.text2).lineLimit(1) } }
     func chip(_ symbol: String, _ color: Color, _ text: String, _ pal: Pal) -> some View {
         HStack(spacing: 4) { Image(systemName: symbol).font(.system(size: 10)).foregroundColor(color).frame(width: 13); Text(text).font(.system(size: 11, weight: .medium)).foregroundColor(pal.text) }.lineLimit(1).fixedSize()
     }
-    func smallTile<V: View>(_ label: String, _ pal: Pal, @ViewBuilder _ content: () -> V) -> some View {
-        VStack(alignment: .leading, spacing: 5) { Text(label).font(.system(size: 11)).foregroundColor(pal.text2).lineLimit(1); content() }
-            .padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).background(RoundedRectangle(cornerRadius: 10).fill(pal.tile))
+    /** Who uses the machine's CPU: the whole figure, and its parts by owner. The band and the detail tiles both read this. */
+    func cpuSplit(_ snap: Snapshot, _ pal: Pal) -> (total: Double, parts: [Part]) {
+        let cl = snap.sessions.filter { $0.agent != "codex" }, cx = snap.sessions.filter { $0.agent == "codex" }
+        let cpuCl = cl.reduce(0) { $0 + model.cpuOf($1) }, cpuCx = cx.reduce(0) { $0 + model.cpuOf($1) }, cpuLeft = model.leftover.cpu * 100
+        let all = max((model.sysCpu ?? 0) * 100, cpuCl + cpuCx + cpuLeft)
+        var parts = [Part(id: "Claude 세션", value: cpuCl, color: pal.claude)]
+        if !cx.isEmpty { parts.append(Part(id: "Codex 세션", value: cpuCx, color: pal.codex)) }
+        parts.append(Part(id: "끝난 세션이 남긴 것", value: cpuLeft, color: pal.left))
+        parts.append(Part(id: "그 밖", value: max(0, all - cpuCl - cpuCx - cpuLeft), color: pal.neutral))
+        return (all, parts)
     }
-    /** The GPU split the same way as CPU and memory: who is on it, by name, and what is left over. */
-    func gpuCard(_ snap: Snapshot, _ pal: Pal) -> some View {
+    /** The same for memory, in MB. */
+    func memSplit(_ snap: Snapshot, _ pal: Pal) -> (total: Double, parts: [Part]) {
+        let cl = snap.sessions.filter { $0.agent != "codex" }, cx = snap.sessions.filter { $0.agent == "codex" }
+        let memCl = cl.reduce(0) { $0 + model.memOf($1) }, memCx = cx.reduce(0) { $0 + model.memOf($1) }, memLeft = model.leftover.mem
+        var parts = [Part(id: "Claude 세션", value: memCl, color: pal.claude)]
+        if !cx.isEmpty { parts.append(Part(id: "Codex 세션", value: memCx, color: pal.codex)) }
+        parts.append(Part(id: "끝난 세션이 남긴 것", value: memLeft, color: pal.left))
+        parts.append(Part(id: "다른 프로그램", value: model.others.reduce(0) { $0 + $1.mem }, color: pal.neutral))
+        return (model.sysMemMb ?? 0, parts)
+    }
+    /** The GPU split the same way as CPU and memory: who is on it, and what is left over. */
+    func gpuSplit(_ snap: Snapshot, _ pal: Pal) -> (total: Double, parts: [Part]) {
         let g = (model.gpu ?? 0) * 100
         let hasCodex = snap.sessions.contains { $0.agent == "codex" }
         let cl = min(100, snap.sessions.filter { $0.agent != "codex" }.reduce(0) { $0 + (model.gpuBySession[$1.pid] ?? 0) } * 100)
@@ -2609,6 +2667,21 @@ struct DashboardView: View {
         if hasCodex { parts.append(Part(id: "Codex 세션", value: cx, color: pal.codex)) }
         parts.append(Part(id: "끝난 세션이 남긴 것", value: left, color: pal.left))
         parts.append(Part(id: "그 밖", value: max(0, g - cl - cx - left), color: pal.neutral))
+        return (g, parts)
+    }
+    /** The thin bar split by owner, the rest in the well colour: the detail tiles draw it 8 points high, the band 6. */
+    func splitBar(_ parts: [Part], scale: Double, height: CGFloat, _ pal: Pal) -> some View {
+        let full = max(scale, parts.reduce(0) { $0 + $1.value }, 0.000001)
+        return GeometryReader { g in
+            HStack(spacing: 2) {
+                ForEach(parts) { p in if p.value > 0 { Rectangle().fill(p.color).frame(width: max(3, (g.size.width - 2 * CGFloat(parts.count)) * CGFloat(p.value / full))) } }
+                Rectangle().fill(pal.well).frame(maxWidth: .infinity)
+            }.clipShape(Capsule())
+        }.frame(height: height)
+    }
+    /** The GPU detail tile, shown under the band when the detail is open. */
+    func gpuCard(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let sp = gpuSplit(snap, pal)
         let top: [Top] = model.gpuLines(snap.sessions, max: 5).map { l in
             let s = l.pid.flatMap { p in snap.sessions.first { $0.pid == p } }
             return Top(id: l.id, name: l.label, value: l.share * 100,
@@ -2616,76 +2689,119 @@ struct DashboardView: View {
                        pid: s?.pid, program: s == nil || l.note.isEmpty ? nil : l.note, doing: s.flatMap { doingNow($0) },
                        origin: s != nil ? nil : l.agent == "left" ? "끝난 세션이 남긴 것" : "세션과 무관한 프로그램", originSymbol: l.agent == "left" ? "moon.zzz.fill" : "macwindow")
         }
-        return machineTile(title: "GPU", total: pct1(g), sub: "기기 전체", parts: parts, scale: 100, fmt: { pct1($0) }, top: top, series: [],
+        return machineTile(title: "GPU", total: pct1(sp.total), sub: "기기 전체", parts: sp.parts, scale: 100, fmt: { pct1($0) }, top: top, series: [],
                            tip: "전체 값은 GPU 장치의 사용률이고 이름별 값은 각 프로그램이 GPU를 쓴 시간의 비율입니다. 재는 방식이 달라 합이 조금 어긋날 수 있습니다", pal: pal)
     }
-    func kpis(_ snap: Snapshot, _ pal: Pal, width: CGFloat) -> some View {
-        let sm = model.samples, span = spanText(sm.first?.at, sm.last?.at)
-        let costs = sm.map { $0.cost }, costUp = (costs.last ?? 0) - (costs.first ?? 0)
+    struct Counts { var active = 0, mains = 0, user = 0, idle = 0, subs = 0 }
+    /** How many main sessions work, wait for the user or rest, and how many sessions they started. Every place that says it reads this one count. */
+    func counts(_ snap: Snapshot) -> Counts {
         let mainOnes = snap.sessions.filter { model.parentSession[$0.pid] == nil }
         let phases = mainOnes.map { model.phase($0) }
-        let nUser = phases.filter { $0 == .needsUser }.count, nIdle = phases.filter { $0 == .idle }.count, nSubs = snap.sessions.count - mainOnes.count
+        return Counts(active: phases.filter { $0 == .active }.count, mains: mainOnes.count, user: phases.filter { $0 == .needsUser }.count, idle: phases.filter { $0 == .idle }.count, subs: snap.sessions.count - mainOnes.count)
+    }
+    /** One tile of the band: 58 pt high on the same plate as every tile. `grow` lets it take the width the others leave. */
+    func bandTile<V: View>(_ pal: Pal, width: CGFloat? = nil, grow: Bool = false, @ViewBuilder _ content: () -> V) -> some View {
+        VStack(alignment: .leading, spacing: 3) { content() }
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .frame(width: width, height: 58, alignment: .leading)
+            .frame(maxWidth: grow ? CGFloat.infinity : nil, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10).fill(pal.tile))
+    }
+    func bandLabel(_ text: String, _ pal: Pal) -> some View { Text(text).font(.system(size: 10.5)).foregroundColor(pal.text2).fixedSize() }
+    func sessionsTile(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let n = counts(snap)
+        return bandTile(pal, grow: true) {
+            bandLabel("작업 중인 세션", pal)
+            HStack(spacing: 7) {
+                if n.active > 0 { LiveDot(color: pal.good) }
+                Text("\(n.active)").font(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).fixedSize()
+                Text("/ \(n.mains)").font(.system(size: 12)).foregroundColor(pal.text2).fixedSize()
+                if n.user > 0 { chip("hand.raised.fill", pal.warning, "확인 대기 \(n.user)", pal) }
+                if n.idle > 0 { chip("pause.circle", pal.text2, "입력 대기 \(n.idle)", pal) }
+                if n.subs > 0 { chip("arrow.turn.down.right", pal.text2, "띄운 세션 \(n.subs)", pal) }
+            }
+        }
+    }
+    /** CPU, memory or GPU as a figure and the split bar; the line each part says is in the tooltip. */
+    func resourceTile(_ title: String, _ value: String, _ parts: [Part], scale: Double, fmt: (Double) -> String, fixed: Bool, _ pal: Pal) -> some View {
+        let tip = (["누르면 나눠 쓰는 몫과 많이 쓰는 곳을 펼칩니다"] + parts.map { "\($0.id) \(fmt($0.value))" }).joined(separator: "\n")
+        return bandTile(pal, width: fixed ? 118 : nil, grow: !fixed) {
+            HStack(spacing: 4) {
+                Text(title).font(.system(size: 10.5)).foregroundColor(pal.text2).fixedSize()
+                Spacer(minLength: 4)
+                Text(value).font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).fixedSize()
+            }
+            splitBar(parts, scale: scale, height: 6, pal).padding(.top, 3)
+        }.help(tip)
+    }
+    /** The three machine tiles are one button: pressing any of them opens or closes the detail above the sessions. */
+    func resources(_ snap: Snapshot, _ pal: Pal, fixed: Bool) -> some View {
+        let cpu = cpuSplit(snap, pal), mem = memSplit(snap, pal), gpu = gpuSplit(snap, pal)
+        return Pressable(radius: 10, action: { detail.toggle() }) {
+            HStack(spacing: 6) {
+                resourceTile("CPU", pct1(cpu.total), cpu.parts, scale: 100, fmt: { pct1($0) }, fixed: fixed, pal)
+                resourceTile("메모리", memText(mem.total), mem.parts, scale: RAM_MB, fmt: { memText($0) }, fixed: fixed, pal)
+                if model.gpu != nil { resourceTile("GPU", pct1(gpu.total), gpu.parts, scale: 100, fmt: { pct1($0) }, fixed: fixed, pal) }
+                Image(systemName: showDetail ? "chevron.up" : "chevron.down").font(.system(size: 9)).foregroundColor(pal.text2).frame(width: 12)
+            }
+        }
+    }
+    func limitsTile(_ snap: Snapshot, _ pal: Pal) -> some View {
         let wins = snap.usage?.claude?.windows ?? []
-        let working = smallTile("작업 중인 세션", pal) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("\(phases.filter { $0 == .active }.count)").font(.system(size: 40, weight: .semibold)).foregroundColor(pal.text)
-                Text("/ \(mainOnes.count)").font(.system(size: 16, weight: .medium)).foregroundColor(pal.text2)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                if nUser > 0 { chip("hand.raised.fill", pal.warning, "확인 대기 \(nUser)", pal) }
-                if nIdle > 0 { chip("pause.circle", pal.text2, "입력 대기 \(nIdle)", pal) }
-                if nSubs > 0 { chip("arrow.turn.down.right", pal.text2, "띄운 세션 \(nSubs)", pal) }
-            }
-        }
-        let cost = smallTile("세션 비용, 정가 환산", pal) {
-            Text(snap.totals.costUsd.map { String(format: "$%.2f", $0) } ?? "-").font(.system(size: 22, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).lineLimit(1).fixedSize()
-            Text("실행 중인 세션 \(snap.sessions.count)개 합계").font(.system(size: 10.5)).foregroundColor(pal.text2).lineLimit(1)
-            if costUp > 0.005 { Text(String(format: "%@ 동안 +$%.2f", span, costUp)).font(.system(size: 10.5)).monospacedDigit().foregroundColor(pal.text2).lineLimit(1) }
-        }.help("구독 청구액이 아니라 쓴 토큰을 정가로 환산한 값입니다")
-        let limits = smallTile("Claude 한도", pal) {
-            if wins.isEmpty { Text("받은 값이 없습니다").font(.system(size: 11)).foregroundColor(pal.text2) }
-            ForEach(wins, id: \.key) { w in
-                let sv = severity(w.usedPct, pal.claude, pal)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 5) {
-                        Text(windowName(w)).font(.system(size: 11.5, weight: .medium)).foregroundColor(pal.text)
-                        if let sym = sv.symbol { Image(systemName: sym).font(.system(size: 10)).foregroundColor(sv.color) }
-                        Spacer(minLength: 4)
-                        Text("\(Int(w.usedPct.rounded()))%").font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).fixedSize()
-                    }
-                    Meter(value: w.usedPct / 100, fill: sv.color)
-                    Text(resetText(w.resetsAt, now: snap.at)).font(.system(size: 10.5)).foregroundColor(pal.text2).lineLimit(1).minimumScaleFactor(0.85)
+        return bandTile(pal) {
+            bandLabel("Claude 한도", pal)
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(wins, id: \.key) { w in
+                    let sv = severity(w.usedPct, pal.claude, pal)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text(windowName(w)).font(.system(size: 11.5, weight: .medium)).foregroundColor(pal.text).fixedSize()
+                            if let sym = sv.symbol { Image(systemName: sym).font(.system(size: 10)).foregroundColor(sv.color) }
+                            Spacer(minLength: 4)
+                            Text("\(Int(w.usedPct.rounded()))%").font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).fixedSize()
+                        }
+                        Meter(value: w.usedPct / 100, fill: sv.color, height: 5)
+                    }.frame(minWidth: 84, alignment: .leading).help(resetText(w.resetsAt, now: snap.at))
                 }
             }
         }
-        let rank = smallTile("이달의 랭킹", pal) {
-            if let st = snap.standing {
-                HStack(spacing: 8) {
-                    Text(st.emoji).font(.system(size: 28)).fixedSize()
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 4) { Text(st.name).font(.system(size: 14, weight: .semibold)).foregroundColor(pal.text).lineLimit(1); if st.crown == true { Image(systemName: "crown.fill").font(.system(size: 9.5)).foregroundColor(pal.warning) } }
-                        Text(st.rank != nil && st.ranked != nil ? "\(Int(st.ranked!))명 중 \(Int(st.rank!))위" : "집계 전").font(.system(size: 11.5)).foregroundColor(pal.text2).lineLimit(1)
-                    }
-                }
-                if let p = st.scorePct {
-                    Meter(value: p / 100, fill: pal.neutral, tick: st.next?.floorPct.map { $0 / 100 }, tickColor: pal.text)
-                    Text("점수 백분위 \(Int(p))%" + (st.next.map { ", 다음 \($0.emoji) \($0.floorPct.map { "\(Int($0))%" } ?? "")" } ?? "")).font(.system(size: 10.5)).foregroundColor(pal.text2).lineLimit(1)
-                }
-            } else { Text("팀에 참여하면 나옵니다").font(.system(size: 11)).foregroundColor(pal.text2) }
-        }
-        return Group {
-            if width >= 980 {
-                HStack(alignment: .top, spacing: 10) {
-                    if model.gpu != nil { gpuCard(snap, pal) }
-                    working.frame(width: 132); cost.frame(width: 156); limits.frame(width: 170); rank.frame(width: 170)
-                }.fixedSize(horizontal: false, vertical: true)
-            } else {
-                VStack(spacing: 10) {
-                    if model.gpu != nil { gpuCard(snap, pal) }
-                    HStack(alignment: .top, spacing: 10) { working; cost }.fixedSize(horizontal: false, vertical: true)
-                    HStack(alignment: .top, spacing: 10) { limits; rank }.fixedSize(horizontal: false, vertical: true)
-                }
+    }
+    func costTile(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let sm = model.samples, span = spanText(sm.first?.at, sm.last?.at)
+        let costs = sm.map { $0.cost }, costUp = (costs.last ?? 0) - (costs.first ?? 0)
+        var tip = "실행 중인 세션 \(snap.sessions.count)개 합계입니다. 구독 청구액이 아니라 쓴 토큰을 정가로 환산한 값입니다"
+        if costUp > 0.005 { tip += "\n" + String(format: "%@ 동안 +$%.2f", span, costUp) }
+        return bandTile(pal) {
+            bandLabel("세션 비용, 정가 환산", pal)
+            Text(snap.totals.costUsd.map { String(format: "$%.2f", $0) } ?? "-").font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundColor(pal.text).fixedSize()
+        }.help(tip)
+    }
+    func rankTile(_ st: Standing, _ pal: Pal) -> some View {
+        var tip = ""
+        if let p = st.scorePct { tip = "점수 백분위 \(Int(p))%" + (st.next.map { ", 다음 \($0.emoji) \($0.floorPct.map { "\(Int($0))%" } ?? "")" } ?? "") }
+        return bandTile(pal) {
+            bandLabel("이달의 랭킹", pal)
+            HStack(spacing: 6) {
+                Text(st.emoji).font(.system(size: 15)).fixedSize()
+                Text(st.name).font(.system(size: 12.5, weight: .semibold)).foregroundColor(pal.text).fixedSize()
+                if st.crown == true { Image(systemName: "crown.fill").font(.system(size: 9.5)).foregroundColor(pal.warning) }
+                Text(st.rank != nil && st.ranked != nil ? "\(Int(st.ranked!))명 중 \(Int(st.rank!))위" : "집계 전").font(.system(size: 11.5)).foregroundColor(pal.text2).fixedSize()
             }
+        }.help(tip)
+    }
+    /**
+     * One thin band instead of the big machine and summary tiles: what the sessions are doing, the machine as three small
+     * bars, the account limits, the cost and the ranking. The first row that fits the width wins, and the last one wraps.
+     */
+    func band(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let sessions = sessionsTile(snap, pal), cost = costTile(snap, pal)
+        let hasLimits = !(snap.usage?.claude?.windows ?? []).isEmpty
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { sessions; resources(snap, pal, fixed: true); if hasLimits { limitsTile(snap, pal) }; cost; if let st = snap.standing { rankTile(st, pal) } }
+            HStack(spacing: 8) { sessions; resources(snap, pal, fixed: true); if hasLimits { limitsTile(snap, pal) }; cost }
+            HStack(spacing: 8) { sessions; resources(snap, pal, fixed: true); if hasLimits { limitsTile(snap, pal) } }
+            HStack(spacing: 8) { sessions; resources(snap, pal, fixed: true) }
+            VStack(spacing: 8) { sessions; resources(snap, pal, fixed: false) }
         }
     }
     /** Trends at a size and with the labels that let them be read: the machine against the sessions, for CPU, memory and GPU. */
@@ -2779,7 +2895,6 @@ struct DashboardView: View {
     }
     /** One machine resource: the total, a thin bar split by who is using it with its legend, a trend, and the largest users by name. */
     func machineTile(title: String, total: String, sub: String, parts: [Part], scale: Double, fmt: @escaping (Double) -> String, top: [Top], series: [(v: [Double], c: Color)], tip: String, pal: Pal) -> some View {
-        let full = max(scale, parts.reduce(0) { $0 + $1.value }, 0.000001)
         let topMax = max(top.map { $0.value }.max() ?? 0, 0.000001)
         // The figure, bar and legend take a fixed narrow column, so every remaining point of width goes to the names of the largest users.
         return HStack(alignment: .top, spacing: 14) {
@@ -2789,12 +2904,7 @@ struct DashboardView: View {
                     Text(total).font(.system(size: 26, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).fixedSize()
                     Text(sub).font(.system(size: 11)).foregroundColor(pal.text2).lineLimit(1)
                 }
-                GeometryReader { g in
-                    HStack(spacing: 2) {
-                        ForEach(parts) { p in if p.value > 0 { Rectangle().fill(p.color).frame(width: max(3, (g.size.width - 2 * CGFloat(parts.count)) * CGFloat(p.value / full))) } }
-                        Rectangle().fill(pal.well).frame(maxWidth: .infinity)
-                    }.clipShape(Capsule())
-                }.frame(height: 8)
+                splitBar(parts, scale: scale, height: 8, pal)
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(parts) { p in
                         HStack(spacing: 5) {
@@ -2835,25 +2945,17 @@ struct DashboardView: View {
     }
     func machine(_ snap: Snapshot, _ pal: Pal, width: CGFloat) -> some View {
         let sm = model.samples, ses = snap.sessions
-        let cl = ses.filter { $0.agent != "codex" }, cx = ses.filter { $0.agent == "codex" }
-        let cpuCl = cl.reduce(0) { $0 + model.cpuOf($1) }, cpuCx = cx.reduce(0) { $0 + model.cpuOf($1) }, cpuLeft = model.leftover.cpu * 100
-        let cpuAll = max((model.sysCpu ?? 0) * 100, cpuCl + cpuCx + cpuLeft)
-        let memCl = cl.reduce(0) { $0 + model.memOf($1) }, memCx = cx.reduce(0) { $0 + model.memOf($1) }, memLeft = model.leftover.mem
-        let memAll = model.sysMemMb ?? 0
-        var cpuParts = [Part(id: "Claude 세션", value: cpuCl, color: pal.claude)], memParts = [Part(id: "Claude 세션", value: memCl, color: pal.claude)]
-        if !cx.isEmpty { cpuParts.append(Part(id: "Codex 세션", value: cpuCx, color: pal.codex)); memParts.append(Part(id: "Codex 세션", value: memCx, color: pal.codex)) }
-        cpuParts.append(Part(id: "끝난 세션이 남긴 것", value: cpuLeft, color: pal.left)); memParts.append(Part(id: "끝난 세션이 남긴 것", value: memLeft, color: pal.left))
-        cpuParts.append(Part(id: "그 밖", value: max(0, cpuAll - cpuCl - cpuCx - cpuLeft), color: pal.neutral)); memParts.append(Part(id: "다른 프로그램", value: model.others.reduce(0) { $0 + $1.mem }, color: pal.neutral))
+        let cpu = cpuSplit(snap, pal), mem = memSplit(snap, pal)
         func tops(_ pick: (AppLoad) -> Double, _ of: (Session) -> Double, _ part: (Work) -> Double, _ show: (Double) -> String) -> [Top] {
             var t = ses.map { s in Top(id: "s\(s.pid)", name: s.name ?? s.agent, value: of(s), color: pal.agent(s.agent), pid: s.pid, program: heaviest(s, total: of(s), part, show), doing: doingNow(s)) }
             t += model.leftoverItems.map { Top(id: "l\($0.id)", name: $0.name, value: pick($0), color: pal.left, origin: leftOrigin($0.id)) }
             t += model.others.map { Top(id: "o\($0.id)", name: $0.name, value: pick($0), color: pal.neutral, origin: "세션과 무관한 프로그램", originSymbol: "macwindow") }
             return Array(t.sorted { $0.value > $1.value }.prefix(5))
         }
-        let a = machineTile(title: "CPU", total: pct1(cpuAll), sub: "기기 전체", parts: cpuParts, scale: 100, fmt: { pct1($0) }, top: tops({ $0.cpu * 100 }, { model.cpuOf($0) }, { $0.cpu * 100 }, { pct1($0) }),
+        let a = machineTile(title: "CPU", total: pct1(cpu.total), sub: "기기 전체", parts: cpu.parts, scale: 100, fmt: { pct1($0) }, top: tops({ $0.cpu * 100 }, { model.cpuOf($0) }, { $0.cpu * 100 }, { pct1($0) }),
                             series: [(sm.map { $0.sysCpu * 100 }, pal.neutral), (sm.map { ($0.claudeCpu + $0.codexCpu) * 100 }, pal.claude)],
                             tip: "세션 값에는 세션이 따로 떼어 띄운 프로세스도 들어갑니다. 회색 선은 기기 전체, 색 선은 실행 중인 세션입니다", pal: pal)
-        let b = machineTile(title: "메모리", total: memText(memAll), sub: "/ \(Int((RAM_MB / 1024).rounded())) GB 사용", parts: memParts, scale: RAM_MB, fmt: { memText($0) }, top: tops({ $0.mem }, { model.memOf($0) }, { $0.mem }, { memText($0) }),
+        let b = machineTile(title: "메모리", total: memText(mem.total), sub: "/ \(Int((RAM_MB / 1024).rounded())) GB 사용", parts: mem.parts, scale: RAM_MB, fmt: { memText($0) }, top: tops({ $0.mem }, { model.memOf($0) }, { $0.mem }, { memText($0) }),
                             series: [(sm.map { $0.sysMem * 100 }, pal.neutral), (sm.map { ($0.claudeMem + $0.codexMem) * 100 }, pal.claude)],
                             tip: "프로그램별 값은 압축된 메모리와 GPU 메모리까지 센 점유량입니다. 그래서 합이 실제 사용량보다 클 수 있습니다", pal: pal)
         return Group { if width >= 900 { HStack(alignment: .top, spacing: 10) { a; b } } else { VStack(spacing: 10) { a; b } } }
@@ -3013,115 +3115,246 @@ struct DashboardView: View {
             if w.mem >= 512 { IconStat(symbol: "memorychip", value: memText(w.mem), tip: "메모리", pal: pal) }
         }
     }
-    /** The right column while no session is picked: what is running now, whoever needs the user first. Picking a session shows its detail in this same column. */
-    func nowColumn(_ snap: Snapshot, _ pal: Pal) -> some View {
+    func warnText(_ w: Warn) -> String { w.chip.replacingOccurrences(of: "⚠ ", with: "").replacingOccurrences(of: "🚨 ", with: "") }
+    func warnIcon(_ w: Warn, _ pal: Pal) -> some View {
+        Image(systemName: w.level == "critical" ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundColor(w.level == "critical" ? pal.critical : pal.warning)
+    }
+    /** The statusline's warnings as capsules in one row, under the band. */
+    func warnChips(_ ws: [Warn], _ pal: Pal) -> some View {
+        HStack(spacing: 8) {
+            ForEach(ws) { w in
+                HStack(spacing: 6) { warnIcon(w, pal); Text(warnText(w)).font(.system(size: 12, weight: .medium)).foregroundColor(pal.text) }
+                    .padding(.horizontal, 9).padding(.vertical, 5).background(Capsule().fill(pal.tile)).help(w.advice?.first?.tip ?? w.advice?.first?.title ?? "")
+            }
+            Spacer(minLength: 0)
+        }
+    }
+    /** One session that is working or waiting for the user. `dense` says in one line what it is doing, where the wide layout lists its programs. */
+    func liveRow(_ s: Session, _ snap: Snapshot, _ pal: Pal, subs: [Session], dense: Bool, pick: @escaping (Session) -> Void) -> some View {
+        let ph = model.phase(s), tint = pal.state(ph), mark = stateMark(s)
+        let byLoad = ph == .active && s.state != "busy" && s.state != "shell" && s.subagents == 0
+        let pending = (s.detail?.recent ?? []).last { $0.pending == true }
+        let name = Text(s.name ?? s.agent).font(.system(size: 12.5, weight: .semibold)).foregroundColor(pal.text)
+        let row = VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: dense ? .top : .center, spacing: 6) {
+                if ph == .active { LiveDot(color: tint) } else { Image(systemName: mark.symbol).font(.system(size: 11)).foregroundColor(tint).frame(width: 12) }
+                // The narrow layout never cuts a name: it takes a second line first.
+                if dense { name.lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) } else { name.lineLimit(1).truncationMode(.middle) }
+                Spacer(minLength: 4)
+                Text(byLoad ? "프로그램 실행 중" : "\(mark.label) \(sinceText(s.stateSince, now: snap.at))").font(.system(size: 11)).foregroundColor(pal.text2).lineLimit(1).fixedSize()
+            }
+            if dense { doingLine(s, pending, pal) } else {
+                if let p = pending {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: toolSymbol(p.tool)).font(.system(size: 10)).foregroundColor(pal.text2).frame(width: 12, height: 14)
+                        Text((p.target ?? "").isEmpty ? toolName(p.tool) : (p.target ?? "")).font(.system(size: 11.5)).foregroundColor(pal.text).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                ForEach(Array(model.working(s, max: 3).enumerated()), id: \.offset) { _, it in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "gearshape.2.fill").font(.system(size: 9.5)).foregroundColor(pal.text2).frame(width: 12)
+                            Text(it.name).font(.system(size: 11.5, weight: .medium)).foregroundColor(pal.text).lineLimit(1).truncationMode(.middle).help(it.name)
+                        }
+                        stats(it.w, pal).padding(.leading, 18)
+                    }
+                }
+            }
+            if !subs.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.turn.down.right").font(.system(size: 9.5, weight: .semibold)).foregroundColor(pal.text2).frame(width: 12)
+                    Text("띄운 세션 \(subs.count)개").font(.system(size: 11.5)).foregroundColor(pal.text)
+                    Spacer(minLength: 4)
+                    Text("작업 중 \(subs.filter { model.phase($0) == .active }.count)").font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(pal.text)
+                }
+            }
+        }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(pal.well.opacity(0.55)))
+        return Pressable(radius: 8, action: { pick(s) }) { row }.help(dense ? "누르면 이 세션이 열려 있는 터미널로 갑니다" : "")
+    }
+    /** What a working session does right now, in one line: the tool call in flight, else its heaviest program, else that it is writing. Its context fill sits at the end. */
+    @ViewBuilder func doingLine(_ s: Session, _ pending: ToolCall?, _ pal: Pal) -> some View {
+        let top = model.working(s, max: 1).first
+        let what: (symbol: String, text: String)? = pending.map { p in (toolSymbol(p.tool), (p.target ?? "").isEmpty ? toolName(p.tool) : (p.target ?? "")) }
+            ?? top.map { ("gearshape.2.fill", $0.name) } ?? (s.state == "busy" ? ("ellipsis.bubble.fill", "응답을 쓰는 중") : nil)
+        let ctx = s.context?.pct
+        if what != nil || ctx != nil {
+            HStack(alignment: .top, spacing: 6) {
+                if let w = what {
+                    Image(systemName: w.symbol).font(.system(size: 10)).foregroundColor(pal.text2).frame(width: 12, height: 14)
+                    Text(w.text).font(.system(size: 11.5)).foregroundColor(pal.text).lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                if let p = ctx { Text("컨텍스트 \(Int(p))%").font(.system(size: 10.5)).monospacedDigit().foregroundColor(severity(p, pal.text2, pal, warnAt: 80, critAt: 95).color).lineLimit(1).fixedSize() }
+            }
+        }
+    }
+    /** A session resting at its prompt: one quiet line. */
+    func idleRow(_ s: Session, _ snap: Snapshot, _ pal: Pal, dense: Bool, pick: @escaping (Session) -> Void) -> some View {
+        let name = Text(s.name ?? s.agent).font(.system(size: 12)).foregroundColor(pal.text2)
+        return Pressable(radius: 6, action: { pick(s) }) {
+            HStack(alignment: dense ? .top : .center, spacing: 6) {
+                Image(systemName: "pause.circle").font(.system(size: 11)).foregroundColor(pal.text2).frame(width: 12)
+                if dense { name.lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) } else { name.lineLimit(1).truncationMode(.middle) }
+                Spacer(minLength: 4)
+                Text(sinceText(s.stateSince, now: snap.at)).font(.system(size: 10.5)).foregroundColor(pal.text2).fixedSize()
+            }.padding(.vertical, 5).padding(.horizontal, 10).frame(maxWidth: .infinity, alignment: .leading)
+        }.help(dense ? "누르면 이 세션이 열려 있는 터미널로 갑니다" : "")
+    }
+    /**
+     * Who is working or waiting for the user, then who rests at the prompt, as rows that can be pressed. It fills the width
+     * it is given: the right column gives it 372 points, the narrow layout the whole window.
+     */
+    func nowList(_ snap: Snapshot, _ pal: Pal, dense: Bool, pick: @escaping (Session) -> Void) -> some View {
         let everyone = model.ordered(snap.sessions)
         let all = everyone.filter { model.parentSession[$0.pid] == nil }
         let subsOf: (Session) -> [Session] = { up in everyone.filter { model.parentSession[$0.pid] == up.pid } }
         let busy: (Session) -> Bool = { s in model.phase(s) != .idle || subsOf(s).contains { model.phase($0) != .idle } }
         let live = all.filter { busy($0) }, idle = all.filter { !busy($0) }
-        let body = VStack(alignment: .leading, spacing: 10) {
-            Text("지금 도는 것").font(.system(size: 15, weight: .semibold)).foregroundColor(pal.text)
+        return VStack(alignment: .leading, spacing: 10) {
             if live.isEmpty { Text("작업 중인 세션이 없습니다").font(.system(size: 12)).foregroundColor(pal.text2) }
-            ForEach(live) { s in
-                let ph = model.phase(s), tint = pal.state(ph), mark = stateMark(s)
-                let byLoad = ph == .active && s.state != "busy" && s.state != "shell" && s.subagents == 0
-                let pending = (s.detail?.recent ?? []).last { $0.pending == true }
-                Pressable(radius: 8, action: { selected = s.pid }) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 6) {
-                            if ph == .active { LiveDot(color: tint) } else { Image(systemName: mark.symbol).font(.system(size: 11)).foregroundColor(tint).frame(width: 12) }
-                            Text(s.name ?? s.agent).font(.system(size: 12.5, weight: .semibold)).foregroundColor(pal.text).lineLimit(1).truncationMode(.middle)
-                            Spacer(minLength: 4)
-                            Text(byLoad ? "프로그램 실행 중" : "\(mark.label) \(sinceText(s.stateSince, now: snap.at))").font(.system(size: 11)).foregroundColor(pal.text2).lineLimit(1).fixedSize()
-                        }
-                        if let p = pending {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: toolSymbol(p.tool)).font(.system(size: 10)).foregroundColor(pal.text2).frame(width: 12, height: 14)
-                                Text((p.target ?? "").isEmpty ? toolName(p.tool) : (p.target ?? "")).font(.system(size: 11.5)).foregroundColor(pal.text).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        ForEach(Array(model.working(s, max: 3).enumerated()), id: \.offset) { _, it in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "gearshape.2.fill").font(.system(size: 9.5)).foregroundColor(pal.text2).frame(width: 12)
-                                    Text(it.name).font(.system(size: 11.5, weight: .medium)).foregroundColor(pal.text).lineLimit(1).truncationMode(.middle).help(it.name)
-                                }
-                                stats(it.w, pal).padding(.leading, 18)
-                            }
-                        }
-                        let subs = subsOf(s)
-                        if !subs.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: "arrow.turn.down.right").font(.system(size: 9.5, weight: .semibold)).foregroundColor(pal.text2).frame(width: 12)
-                                Text("띄운 세션 \(subs.count)개").font(.system(size: 11.5)).foregroundColor(pal.text)
-                                Spacer(minLength: 4)
-                                Text("작업 중 \(subs.filter { model.phase($0) == .active }.count)").font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(pal.text)
-                            }
-                        }
-                    }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(pal.well.opacity(0.55)))
-                }
-            }
+            ForEach(live) { s in liveRow(s, snap, pal, subs: subsOf(s), dense: dense, pick: pick) }
             if !idle.isEmpty {
                 Text("입력 대기").font(.system(size: 11)).foregroundColor(pal.text2).padding(.top, 4)
-                ForEach(idle) { s in
-                    Pressable(radius: 6, action: { selected = s.pid }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "pause.circle").font(.system(size: 11)).foregroundColor(pal.text2).frame(width: 12)
-                            Text(s.name ?? s.agent).font(.system(size: 12)).foregroundColor(pal.text2).lineLimit(1).truncationMode(.middle)
-                            Spacer(minLength: 4)
-                            Text(sinceText(s.stateSince, now: snap.at)).font(.system(size: 10.5)).foregroundColor(pal.text2)
-                        }.padding(.vertical, 5).padding(.horizontal, 10).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
+                ForEach(idle) { s in idleRow(s, snap, pal, dense: dense, pick: pick) }
             }
             if model.leftover.n > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "moon.zzz.fill").font(.system(size: 11)).foregroundColor(pal.left).frame(width: 12)
                     Text("끝난 세션이 남긴 프로세스 \(model.leftover.n)개").font(.system(size: 11.5)).foregroundColor(pal.text)
                     Spacer(minLength: 4)
-                    Text("\(pct1(model.leftover.cpu * 100)), \(memText(model.leftover.mem))").font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(pal.text)
+                    Text("\(pct1(model.leftover.cpu * 100)), \(memText(model.leftover.mem))").font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(pal.text).fixedSize()
                 }.padding(.top, 6).padding(.horizontal, 10)
             }
+        }.frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+    /** The right column while no session is picked: what is running now, whoever needs the user first. Picking a session shows its detail in this same column. */
+    func nowColumn(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let body = VStack(alignment: .leading, spacing: 10) {
+            Text("지금 도는 것").font(.system(size: 15, weight: .semibold)).foregroundColor(pal.text)
+            nowList(snap, pal, dense: false, pick: { selected = $0.pid })
             Divider().padding(.vertical, 4)
             trends(pal)
         }.padding(14).frame(width: 372, alignment: .topLeading)
         return Group { if still { body } else { ScrollView { body } } }
     }
+    /** What scrolls under the band: the machine detail when it is open, then the project groups. */
+    func scrollRegion(_ snap: Snapshot, _ pal: Pal, inner: CGFloat) -> some View {
+        let body = VStack(alignment: .leading, spacing: 12) {
+            if showDetail {
+                machine(snap, pal, width: inner)
+                if model.gpu != nil { gpuCard(snap, pal) }
+            }
+            if snap.sessions.isEmpty { Text("실행 중인 세션이 없습니다").font(.system(size: 13)).foregroundColor(pal.text2).padding(.top, 20).frame(maxWidth: .infinity) } else { groupsView(snap, pal, width: inner) }
+        }
+        return Group { if still { body } else { ScrollView { body } } }
+    }
+    /** The band, the warnings and the scroll region. The band and the warnings stay put while the rest scrolls. */
+    func leftColumn(_ pal: Pal, inner: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let snap = model.snap {
+                band(snap, pal)
+                if let ws = snap.warnings, !ws.isEmpty { warnChips(ws, pal) }
+                if snap.sessions.isEmpty && !showDetail { Text("실행 중인 세션이 없습니다").font(.system(size: 13)).foregroundColor(pal.text2).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                else { scrollRegion(snap, pal, inner: inner) }
+            } else {
+                Text(model.failure ?? "불러오는 중입니다").font(.system(size: 13)).foregroundColor(pal.text2).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }.padding(.horizontal, 18).padding(.bottom, 18).padding(.top, still ? 12 : TITLE_BAR + 10).frame(maxWidth: .infinity, maxHeight: still ? nil : .infinity, alignment: .topLeading)
+    }
+    /** Wide: the left column and a 372 point column on the right that holds what is running now, or the picked session. */
+    func largeLayout(_ pal: Pal, width: CGFloat) -> some View {
+        let open = selected.flatMap { pid in model.snap?.sessions.first { $0.pid == pid } }
+        return HStack(alignment: .top, spacing: 0) {
+            leftColumn(pal, inner: max(318, width - 372 - 36))
+            if let snap = model.snap {
+                Group { if let s = open { inspector(s, snap, pal) } else { nowColumn(snap, pal) } }.padding(.top, still ? 0 : TITLE_BAR + 10).frame(width: 372, alignment: .top)
+            }
+        }.background(alignment: .topTrailing) { Rectangle().fill(pal.tile).frame(width: 372) }
+    }
+    /** Middle: no right column. A picked session's detail lies over the trailing edge, so nothing under it moves when it opens or closes. */
+    func mediumLayout(_ pal: Pal, width: CGFloat) -> some View {
+        let open = selected.flatMap { pid in model.snap?.sessions.first { $0.pid == pid } }
+        return ZStack(alignment: .topTrailing) {
+            leftColumn(pal, inner: width - 36)
+            if let s = open, let snap = model.snap {
+                inspector(s, snap, pal).padding(.top, still ? 0 : TITLE_BAR + 10).frame(width: 372).frame(maxHeight: still ? nil : .infinity, alignment: .top)
+                    .background(pal.tile).shadow(color: Color.black.opacity(pal.dark ? 0.5 : 0.2), radius: 10, x: -4, y: 0)
+            }
+        }
+    }
+    func metric(_ label: String, _ value: String, _ pal: Pal, color: Color? = nil) -> some View {
+        HStack(spacing: 3) {
+            Text(label).font(.system(size: 10.5)).foregroundColor(pal.text2)
+            Text(value).font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundColor(color ?? pal.text)
+        }.lineLimit(1).fixedSize()
+    }
+    /** The machine figures and the account limits on one line, the limits dropped one by one when the width runs out. */
+    func metricsLine(_ snap: Snapshot, _ pal: Pal, limits: Int) -> some View {
+        let wins = Array((snap.usage?.claude?.windows ?? []).prefix(limits))
+        return HStack(spacing: 10) {
+            metric("CPU", pct1(cpuSplit(snap, pal).total), pal)
+            metric("메모리", memText(memSplit(snap, pal).total), pal)
+            if model.gpu != nil { metric("GPU", pct1(gpuSplit(snap, pal).total), pal) }
+            ForEach(wins, id: \.key) { w in metric("\(windowName(w)) 한도", "\(Int(w.usedPct.rounded()))%", pal, color: severity(w.usedPct, pal.text, pal).color) }
+            Spacer(minLength: 0)
+        }
+    }
+    func miniHeader(_ snap: Snapshot, _ pal: Pal) -> some View {
+        let n = counts(snap)
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                if n.active > 0 { LiveDot(color: pal.good) }
+                Text("작업 중 \(n.active)").font(.system(size: 15, weight: .semibold)).foregroundColor(pal.text).fixedSize()
+                Text("/ \(n.mains)").font(.system(size: 12)).foregroundColor(pal.text2).fixedSize()
+                Spacer(minLength: 6)
+                if n.user > 0 { chip("hand.raised.fill", pal.warning, "확인 대기 \(n.user)", pal) }
+                if n.idle > 0 { chip("pause.circle", pal.text2, "입력 대기 \(n.idle)", pal) }
+            }
+            ViewThatFits(in: .horizontal) {
+                metricsLine(snap, pal, limits: 4)
+                metricsLine(snap, pal, limits: 1)
+                metricsLine(snap, pal, limits: 0)
+            }
+        }.padding(.horizontal, 12).padding(.top, still ? 10 : TITLE_BAR + 6).padding(.bottom, 8)
+    }
+    /** Narrow: one column of sessions on the tile colour, a header with the counts and the machine, and every session as a row. */
+    func miniLayout(_ pal: Pal) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let snap = model.snap {
+                miniHeader(snap, pal)
+                if let ws = snap.warnings, !ws.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(ws) { w in
+                            HStack(alignment: .top, spacing: 6) {
+                                warnIcon(w, pal).frame(height: 15)
+                                Text(warnText(w)).font(.system(size: 12, weight: .medium)).foregroundColor(pal.text).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                            }.help(w.advice?.first?.tip ?? w.advice?.first?.title ?? "")
+                        }
+                    }.padding(.horizontal, 12).padding(.bottom, 8)
+                }
+                Divider()
+                let list = nowList(snap, pal, dense: true, pick: { jump(to: $0) }).padding(10)
+                if still { list } else { ScrollView { list } }
+            } else {
+                Text(model.failure ?? "불러오는 중입니다").font(.system(size: 13)).foregroundColor(pal.text2).padding(.top, still ? 10 : TITLE_BAR + 6).padding(.horizontal, 12).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }.frame(maxWidth: .infinity, maxHeight: still ? nil : .infinity, alignment: .topLeading).background(pal.tile)
+    }
     func content(_ width: CGFloat) -> some View {
         let pal = Pal(dark: scheme == .dark)
-        let open = selected.flatMap { pid in model.snap?.sessions.first { $0.pid == pid } }
-        let inner = max(318, width - 372 - 36)
-        return HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                if let snap = model.snap {
-                    machine(snap, pal, width: inner)
-                    kpis(snap, pal, width: inner)
-                    if let ws = snap.warnings, !ws.isEmpty {
-                        HStack(spacing: 8) {
-                            ForEach(ws) { w in
-                                HStack(spacing: 6) {
-                                    Image(systemName: w.level == "critical" ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundColor(w.level == "critical" ? pal.critical : pal.warning)
-                                    Text(w.chip.replacingOccurrences(of: "⚠ ", with: "").replacingOccurrences(of: "🚨 ", with: "")).font(.system(size: 12, weight: .medium)).foregroundColor(pal.text)
-                                }.padding(.horizontal, 9).padding(.vertical, 5).background(Capsule().fill(pal.tile)).help(w.advice?.first?.tip ?? w.advice?.first?.title ?? "")
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    if snap.sessions.isEmpty { Text("실행 중인 세션이 없습니다").font(.system(size: 13)).foregroundColor(pal.text2).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                    else if still { groupsView(snap, pal, width: inner) } else { ScrollView { groupsView(snap, pal, width: inner) } }
-                } else {
-                    Text(model.failure ?? "불러오는 중입니다").font(.system(size: 13)).foregroundColor(pal.text2).frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }.padding(.horizontal, 18).padding(.bottom, 18).padding(.top, 38).frame(maxWidth: .infinity, maxHeight: still ? nil : .infinity, alignment: .topLeading)
-            if let snap = model.snap {
-                Group { if let s = open { inspector(s, snap, pal) } else { nowColumn(snap, pal) } }.padding(.top, still ? 0 : 28).frame(width: 372, alignment: .top)
+        let mode = DashSize.of(width)
+        return Group {
+            switch mode {
+            case .large: largeLayout(pal, width: width)
+            case .medium: mediumLayout(pal, width: width)
+            case .mini: miniLayout(pal)
             }
-        }.frame(minWidth: 1060, maxWidth: .infinity, minHeight: 420, maxHeight: still ? nil : .infinity, alignment: .topLeading)
-            .background(alignment: .topTrailing) { Rectangle().fill(pal.tile).frame(width: 372) }.background(pal.surface)
+        }.frame(minWidth: mode == .large ? 1100 : mode == .medium ? 620 : 300, maxWidth: .infinity, minHeight: 200, maxHeight: still ? nil : .infinity, alignment: .topLeading)
+            .background(pal.surface)
     }
     var body: some View {
-        if still { content(stillWidth) } else { GeometryReader { g in content(g.size.width) } }
+        if still { content(stillWidth) } else { GeometryReader { g in content(g.size.width) }.ignoresSafeArea() }
     }
 }
 /** The animal is a rank, so the rank is said beside it: which species, where in the company, and what comes next. */
@@ -3376,7 +3609,7 @@ func dockIcon(_ grade: String?) -> NSImage {
     }
 }
 /** The few menu commands a window needs once the app is a regular one: close, minimise, quit. */
-func dashboardMenu() -> NSMenu {
+func dashboardMenu(_ app: App) -> NSMenu {
     let bar = NSMenu()
     let appItem = NSMenuItem(), appMenu = NSMenu()
     appMenu.addItem(NSMenuItem(title: "Sprag 끝내기", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -3384,8 +3617,19 @@ func dashboardMenu() -> NSMenu {
     let winItem = NSMenuItem(), winMenu = NSMenu(title: "윈도우")
     winMenu.addItem(NSMenuItem(title: "닫기", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
     winMenu.addItem(NSMenuItem(title: "최소화", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
+    winMenu.addItem(.separator())
+    for (title, key, action) in [("작게", "1", #selector(App.dashMini)), ("중간", "2", #selector(App.dashMedium)), ("크게", "3", #selector(App.dashLarge)), ("항상 위에 두기", "", #selector(App.dashPinMenu))] {
+        let it = NSMenuItem(title: title, action: action, keyEquivalent: key); it.target = app; winMenu.addItem(it)
+    }
     winItem.submenu = winMenu; bar.addItem(winItem)
     return bar
+}
+extension App: NSMenuItemValidation {
+    /** The checkmark of "항상 위에 두기" follows the pin, whichever of the two controls changed it. */
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(App.dashPinMenu) { item.state = dashUI.pinned ? .on : .off }
+        return true
+    }
 }
 extension App: NSApplicationDelegate {
     /** A click on the Dock icon: show the dashboard again, wherever it went. */
@@ -3403,6 +3647,7 @@ final class App: NSObject {
     var frame = 0
     var outside: Any?, keys: Any?
     var dash: NSWindow?
+    let dashUI = DashUI()
     var isOpen: Bool { panel.isVisible }
     var dashOpen: Bool { dash?.isVisible == true }
     /** Each session's work is asked for only while something that shows it is on screen. */
@@ -3417,22 +3662,60 @@ final class App: NSObject {
         if dash == nil {
             let room = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1480, height: 900)
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: min(1480, room.width - 40), height: min(900, room.height - 60)), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-            w.title = "Sprag 대시보드"; w.isReleasedWhenClosed = false; w.titlebarAppearsTransparent = true; w.minSize = NSSize(width: 1060, height: 560)
+            w.title = "Sprag 대시보드"; w.isReleasedWhenClosed = false; w.titlebarAppearsTransparent = true; w.minSize = NSSize(width: 300, height: 200)
             // A plain surface, not a see-through material: the chart colours were checked against this one.
             w.contentView = NSHostingView(rootView: DashboardView(model: model)); w.center()
+            // The last size and place come back next time. The self-test keeps the default frame and leaves the user's saved one alone.
+            if selftest == nil { w.setFrameUsingName("SpragDashboard"); w.setFrameAutosaveName("SpragDashboard"); dashUI.pinned = UserDefaults.standard.bool(forKey: "dashPinned") }
+            w.level = dashUI.pinned ? .floating : .normal
+            let controls = NSHostingView(rootView: DashControls(ui: dashUI, pick: { [weak self] in self?.setDashSize($0) }, pin: { [weak self] in self?.toggleDashPin() }))
+            controls.frame.size = NSSize(width: controls.fittingSize.width, height: 28)
+            let accessory = NSTitlebarAccessoryViewController(); accessory.view = controls; accessory.layoutAttribute = .right
+            w.addTitlebarAccessoryViewController(accessory)
+            NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: w, queue: .main) { [weak self] _ in self?.syncDashSize() }
             NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak self] _ in DispatchQueue.main.async { self?.syncDetail(); NSApp.setActivationPolicy(.accessory) } }
             dash = w
+            syncDashSize()
         }
         // A menu bar app has no Dock icon, so a dashboard that slipped behind other windows could only be found through the
         // menu bar again. While the window is open the app is a regular one: Dock icon, app switcher, and a click on either brings it back.
         NSApp.setActivationPolicy(.regular)
         dockGrade = model.snap?.animal?.grade; NSApp.applicationIconImage = dockIcon(dockGrade)
-        if NSApp.mainMenu == nil { NSApp.mainMenu = dashboardMenu() }
+        if NSApp.mainMenu == nil { NSApp.mainMenu = dashboardMenu(self) }
         NSApp.activate(ignoringOtherApps: true)
         if dash?.isMiniaturized == true { dash?.deminiaturize(nil) }
         dash?.makeKeyAndOrderFront(nil)
         syncDetail()
     }
+    /** The control and the title follow the window's real width, so a dragged edge and a pressed preset end up the same. */
+    func syncDashSize() {
+        guard let w = dash, let v = w.contentView else { return }
+        let s = DashSize.of(v.bounds.width)
+        if dashUI.size != s { dashUI.size = s }
+        let title: NSWindow.TitleVisibility = s == .mini ? .hidden : .visible   // the narrow title bar belongs to the controls
+        if w.titleVisibility != title { w.titleVisibility = title }
+    }
+    /** Resize the window to one of the three layouts. The top edge stays, the side nearer the screen edge stays, and the result is kept on screen. */
+    func setDashSize(_ s: DashSize, animate: Bool = true) {
+        guard let w = dash else { return }
+        let vis = (w.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1480, height: 900)
+        let size: NSSize = s == .mini ? NSSize(width: 340, height: 480) : s == .medium ? NSSize(width: 780, height: 680) : NSSize(width: min(1480, vis.width - 40), height: min(900, vis.height - 60))
+        let now = w.frame
+        var f = NSRect(x: now.midX > vis.midX ? now.maxX - size.width : now.minX, y: now.maxY - size.height, width: size.width, height: size.height)
+        f.size.width = min(f.width, vis.width); f.size.height = min(f.height, vis.height)
+        f.origin.x = max(vis.minX, min(f.origin.x, vis.maxX - f.width)); f.origin.y = max(vis.minY, min(f.origin.y, vis.maxY - f.height))
+        w.setFrame(f, display: true, animate: animate)
+    }
+    /** Keep the dashboard above other windows, and remember that for the next start. */
+    @objc func toggleDashPin() {
+        dashUI.pinned.toggle()
+        dash?.level = dashUI.pinned ? .floating : .normal
+        if selftest == nil { UserDefaults.standard.set(dashUI.pinned, forKey: "dashPinned") }
+    }
+    @objc func dashMini() { setDashSize(.mini) }
+    @objc func dashMedium() { setDashSize(.medium) }
+    @objc func dashLarge() { setDashSize(.large) }
+    @objc func dashPinMenu() { toggleDashPin() }
     func start() {
         panel = FloatPanel(contentRect: NSRect(x: 0, y: 0, width: 408, height: 300), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.level = .popUpMenu
@@ -3757,6 +4040,31 @@ func sessionTest(_ prefix: String) {
         fflush(stdout); dashboardTest(prefix)
     }
 }
+/**
+ * Put the real window through its three sizes, as a press on the title bar would: after each one the layout the width picks
+ * and the control have to agree with the size asked for, the frame has to be on the screen, and the content is captured.
+ * Then the pin: the window must float after one press, and goes back to normal after the second.
+ */
+func dashSizeTest(_ prefix: String, done: @escaping () -> Void) {
+    var todo = DashSize.allCases
+    func next() {
+        guard !todo.isEmpty else {
+            main.toggleDashPin(); print("DASHPIN floating after toggle: \(main.dash?.level == .floating)"); main.toggleDashPin()
+            fflush(stdout); done(); return
+        }
+        let s = todo.removeFirst()
+        main.setDashSize(s, animate: false)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            if let w = main.dash, let v = w.contentView {
+                let vis = (w.screen ?? NSScreen.main)?.visibleFrame ?? .zero
+                print("DASHSIZE \(s.rawValue) window \(Int(w.frame.width))x\(Int(w.frame.height)) | layout \(DashSize.of(v.bounds.width).rawValue) | control \(main.dashUI.size.rawValue) | inside screen \(vis.contains(w.frame))")
+                liveShot(v, "\(prefix)-dashboard-live-\(s.rawValue).png")
+            }
+            next()
+        }
+    }
+    next()
+}
 func dashboardTest(_ prefix: String) {
     main.showDashboard()
     DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
@@ -3768,6 +4076,10 @@ func dashboardTest(_ prefix: String) {
         print("STARTED BY " + (m.parentSession.isEmpty ? "none" : m.parentSession.map { c, up in "\(m.snap?.sessions.first { $0.pid == c }?.name ?? "\(c)") <- \(m.snap?.sessions.first { $0.pid == up }?.name ?? "\(up)")" }.sorted().joined(separator: " | ")))
         print("PHASE " + (m.snap?.sessions ?? []).map { s in "\(s.name ?? s.agent) \(m.phase(s)) [" + m.working(s, max: 3).map { "\($0.name) cpu \(pct1($0.w.cpu * 100)) gpu \(pct1($0.w.gpu * 100)) \(memText($0.w.mem))" }.joined(separator: "; ") + "]" }.joined(separator: " | "))
         render(DashboardView(model: m, still: true).frame(width: 1480), "\(prefix)-dashboard-dark.png")
+        render(DashboardView(model: m, still: true, width: 340).frame(width: 340), "\(prefix)-dashboard-mini-dark.png")
+        render(DashboardView(model: m, still: true, width: 780).frame(width: 780), "\(prefix)-dashboard-medium-dark.png")
+        if let first = m.snap?.sessions.first { render(DashboardView(model: m, still: true, preselect: first.pid, width: 780).frame(width: 780), "\(prefix)-dashboard-medium-open-dark.png") }
+        render(DashboardView(model: m, still: true, detail: true).frame(width: 1480), "\(prefix)-dashboard-detail-dark.png")
         render(DashboardView(model: m, still: true).frame(width: 1480), "\(prefix)-dashboard-light.png", dark: false)
         if let first = m.snap?.sessions.first { render(DashboardView(model: m, still: true, lit: first.pid).frame(width: 1480), "\(prefix)-dashboard-hover-dark.png") }
         print("GPU device \(m.gpu.map { pct1($0 * 100) } ?? "-") | processes on it \(m.gpuUse.count) | sessions on it \(m.gpuBySession.count) | top " + m.gpuUse.prefix(4).map { "\($0.name) \(pct1($0.share * 100)) \($0.session.map { "session \($0)" } ?? "no session")" }.joined(separator: "; "))
@@ -3785,18 +4097,20 @@ func dashboardTest(_ prefix: String) {
         render(DashboardView(model: m, still: true, cleaning: true).frame(width: 1480), "\(prefix)-dashboard-clean-dark.png")
         print("DASHBOARD history samples \(m.samples.count) per-session \(m.hist.values.map { $0.count }.sorted())")
         if let v = main.dash?.contentView { liveShot(v, "\(prefix)-dashboard-live.png") }
-        print("LEFTOVER lines \(m.leftoverItems.count) | never cleaned (apps, virtual machines, databases): \(m.leftoverItems.filter { m.leftoverShared.contains($0.id) }.map { $0.name }.joined(separator: ", "))")
-        // which session each line would reopen, and the folder that session worked in (the id itself is not printed)
-        print("LEFTOVER sessions " + m.leftoverItems.map { it in "\(it.name)=" + (m.leftoverSession[it.id].map { sessionCwd($0).map { ($0 as NSString).lastPathComponent } ?? "no transcript" } ?? "none") }.joined(separator: ", "))
-        if let target = selftestClean {
-            let hit = m.leftoverItems.first { $0.name == target }
-            print("CLEAN target '\(target)': \(hit.map { "\($0.n) process(es)" } ?? "not listed") | protected \(m.leftoverShared.contains(target))")
-            print("CLEAN signals sent: \(m.stopLeftovers([target]))")
-        }
-        main.dash?.close()
-        DispatchQueue.main.asyncAfter(deadline: .now() + (selftestClean == nil ? 0.6 : 6.0)) {
-            if let target = selftestClean { print("CLEAN afterwards: '\(target)' \(m.leftoverItems.contains { $0.name == target } ? "still listed" : "gone") | leftover lines \(m.leftoverItems.count)") }
-            print("DASHBOARD closed, asked for detail \(m.wantDetail) | back to a menu bar app \(NSApp.activationPolicy() == .accessory)"); fflush(stdout); NSApp.terminate(nil)
+        dashSizeTest(prefix) {
+            print("LEFTOVER lines \(m.leftoverItems.count) | never cleaned (apps, virtual machines, databases): \(m.leftoverItems.filter { m.leftoverShared.contains($0.id) }.map { $0.name }.joined(separator: ", "))")
+            // which session each line would reopen, and the folder that session worked in (the id itself is not printed)
+            print("LEFTOVER sessions " + m.leftoverItems.map { it in "\(it.name)=" + (m.leftoverSession[it.id].map { sessionCwd($0).map { ($0 as NSString).lastPathComponent } ?? "no transcript" } ?? "none") }.joined(separator: ", "))
+            if let target = selftestClean {
+                let hit = m.leftoverItems.first { $0.name == target }
+                print("CLEAN target '\(target)': \(hit.map { "\($0.n) process(es)" } ?? "not listed") | protected \(m.leftoverShared.contains(target))")
+                print("CLEAN signals sent: \(m.stopLeftovers([target]))")
+            }
+            main.dash?.close()
+            DispatchQueue.main.asyncAfter(deadline: .now() + (selftestClean == nil ? 0.6 : 6.0)) {
+                if let target = selftestClean { print("CLEAN afterwards: '\(target)' \(m.leftoverItems.contains { $0.name == target } ? "still listed" : "gone") | leftover lines \(m.leftoverItems.count)") }
+                print("DASHBOARD closed, asked for detail \(m.wantDetail) | back to a menu bar app \(NSApp.activationPolicy() == .accessory)"); fflush(stdout); NSApp.terminate(nil)
+            }
         }
     }
 }
