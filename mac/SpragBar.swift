@@ -263,14 +263,30 @@ func exactTab(_ s: Session) -> (tool: String, args: [String])? {
           let dir = env["ORCA_CLI_BIN_DIR"], dir.hasSuffix(".app/Contents/Resources/bin"), FileManager.default.isExecutableFile(atPath: dir + "/orca") else { return nil }
     return (dir + "/orca", ["terminal", "switch", "--terminal", handle])
 }
-/** Go to a session: show its tab where the terminal allows it, then bring the terminal app to the front. */
+/** Whether an app has a normal window on the current screen. Minimized and hidden windows are not on screen. Owner and layer are readable without the screen recording permission. */
+func hasWindowOnScreen(_ pid: pid_t) -> Bool {
+    guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return true }
+    return list.contains { ($0[kCGWindowOwnerPID as String] as? Int) == Int(pid) && ($0[kCGWindowLayer as String] as? Int) == 0 }
+}
+/**
+ * Go to a session: show its tab where the terminal allows it, then bring the terminal app to the front.
+ * activate() only raises windows that are already open, so a terminal whose windows all sit in the Dock came forward with
+ * nothing to show. Opening the running app again sends it the same reopen event a Dock click does, which restores a
+ * minimized window (and unhides a hidden app) without asking for any permission. It is sent only when nothing of the
+ * app is on screen, because some apps open a new window on every reopen.
+ */
 func jump(to s: Session) {
     if let tab = exactTab(s) {
         let p = Process(); p.executableURL = URL(fileURLWithPath: tab.tool); p.arguments = tab.args
         p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
         try? p.run()
     }
-    owningApp(s.pid)?.activate(options: [.activateAllWindows])
+    guard let app = owningApp(s.pid) else { return }
+    app.activate(options: [.activateAllWindows])
+    if let url = app.bundleURL, app.isHidden || !hasWindowOnScreen(app.processIdentifier) {
+        let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: cfg)
+    }
 }
 /** The folder a Claude session worked in, read from its transcript (`<config>/projects/<folder>/<id>.jsonl`, whose lines carry `cwd`). */
 func sessionCwd(_ sid: String) -> String? {
