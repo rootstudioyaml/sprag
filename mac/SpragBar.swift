@@ -287,6 +287,79 @@ func jump(to s: Session) {
         try? p.run()
     }
     guard let app = owningApp(s.pid) else { return }
+    if let script = TAB_SCRIPTS[app.bundleIdentifier ?? ""], let tty = ttyPath(Int32(s.pid)) {
+        selectTab(script, tty: tty) { found in if !found { bringForward(app) } }
+        return
+    }
+    bringForward(app)
+}
+/** The terminal device a process writes to (`/dev/ttys003`), or nil for one without a terminal. */
+func ttyPath(_ pid: Int32) -> String? {
+    var info = proc_bsdinfo()
+    let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+    guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size, info.e_tdev != UInt32.max, let name = devname(dev_t(bitPattern: info.e_tdev), S_IFCHR) else { return nil }
+    return "/dev/" + String(cString: name)
+}
+/**
+ * Terminals that name each tab's tty to AppleScript, with a script that selects the tab on the tty given as its argument,
+ * restores and raises its window and prints true, or prints false when no tab has that tty. Running one asks once for the
+ * Automation permission; refused, the script fails and the jump falls back to bringing the app forward.
+ */
+let TAB_SCRIPTS: [String: String] = [
+    "com.apple.Terminal": """
+    on run argv
+      tell application id "com.apple.Terminal"
+        repeat with w in windows
+          repeat with t in tabs of w
+            if tty of t is (item 1 of argv) then
+              if miniaturized of w then set miniaturized of w to false
+              set selected of t to true
+              set index of w to 1
+              activate
+              return true
+            end if
+          end repeat
+        end repeat
+      end tell
+      return false
+    end run
+    """,
+    "com.googlecode.iterm2": """
+    on run argv
+      tell application id "com.googlecode.iterm2"
+        repeat with w in windows
+          repeat with t in tabs of w
+            repeat with s in sessions of t
+              if tty of s is (item 1 of argv) then
+                if miniaturized of w then set miniaturized of w to false
+                select w
+                tell t to select
+                tell s to select
+                activate
+                return true
+              end if
+            end repeat
+          end repeat
+        end repeat
+      end tell
+      return false
+    end run
+    """,
+]
+/** Run a tab script off the main thread; `done` gets whether the tab was found, on the main thread. A permission prompt left unanswered gives up after a minute. */
+func selectTab(_ script: String, tty: String, done: @escaping (Bool) -> Void) {
+    let p = Process(), out = Pipe()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript"); p.arguments = ["-e", script, tty]
+    p.standardOutput = out; p.standardError = FileHandle.nullDevice
+    p.terminationHandler = { _ in
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        DispatchQueue.main.async { done(text == "true") }
+    }
+    do { try p.run() } catch { done(false); return }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 60) { if p.isRunning { p.terminate() } }
+}
+/** Bring a terminal app forward, restoring a minimized window when nothing of it is on screen (see jump). */
+func bringForward(_ app: NSRunningApplication) {
     app.activate(options: [.activateAllWindows])
     if let url = app.bundleURL, app.isHidden || !hasWindowOnScreen(app.processIdentifier) {
         let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true
@@ -3456,6 +3529,8 @@ struct PanelView: View {
             case .warning(let chip): WarningView(w: model.snap?.warnings?.first { $0.chip == chip }, now: model.snap?.at ?? 0, limit: maxHeight, back: { nav.page = .status })
             }
         }
+        // A page that still comes out taller than the screen loses its bottom, never the header with the back and menu buttons.
+        .frame(maxHeight: still ? nil : maxHeight, alignment: .top)
     }
     /** How many sessions, and how they stand: working, waiting for a go-ahead, waiting for input. Sessions another one started are counted apart. */
     func sessionsTitle(_ snap: Snapshot) -> String {
@@ -3829,6 +3904,10 @@ final class App: NSObject {
     /** Size the window to its content and hang it under the menu bar item, wholly inside the screen. */
     func place() {
         guard let b = item.button, let bw = b.window, let screen = bw.screen ?? NSScreen.main else { return }
+        // The content's own height limit follows the screen the menu bar item is on. Set once from the main screen at
+        // launch, it let a page grow taller than a shorter screen's window, and the window cut the page off at the top.
+        let cap = screen.visibleFrame.height - 12
+        if abs(hosting.rootView.maxHeight - cap) > 0.5 { var v = hosting.rootView; v.maxHeight = cap; hosting.rootView = v }
         hosting.layoutSubtreeIfNeeded()
         let vis = screen.visibleFrame, fit = hosting.fittingSize
         let w = fit.width, h = min(fit.height, vis.height - 12)
