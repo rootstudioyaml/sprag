@@ -98,6 +98,18 @@ everything it added and restores a statusline it merged with.
 
 Using Codex? See [Codex](#codex) below.
 
+## Sprag Bar: every session in the macOS menu bar
+
+On a Mac, sprag also puts an animal in the menu bar. It runs faster as the agent sessions load the machine, with the CPU figure beside it. Click it to see every running Claude Code and Codex session: the model and effort, what it is doing now, context use, cost, CPU and memory, and the 5-hour and weekly limits of each account.
+
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-bar-panel.png" width="400" alt="The Sprag Bar panel: five sessions, three working and two waiting for input. Each row shows Claude or Codex, the task, the model and effort, how long it has been in that state, CPU, memory, context use and cost.">
+
+The dashboard window groups the sessions by project and shows what each one is running, from the tool call to the subagent it handed work to. The jump button on a tile brings that session's Terminal.app or iTerm2 tab to the front. The window has three sizes (⌘1, ⌘2, ⌘3), and processes left behind by sessions that have ended can be stopped from a checklist.
+
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-bar-dashboard.png" width="760" alt="The Sprag Bar dashboard at its middle size: session tiles grouped by project, each with its state, model, context, CPU, memory, GPU, cost and the step it is on, such as a subagent running the tests or npm test.">
+
+The app is not shipped as a binary. Sprag compiles its Swift source on your Mac when a session starts, once per release that changes it, so it needs the Xcode command line tools. `sprag bar off` turns it off, `sprag bar on` brings it back, and `sprag bar status` says why it is not showing. On a team, the animal is your [Sprag Town](#teams) grade for the month.
+
 ## How it works
 
 <picture>
@@ -365,7 +377,9 @@ The CLI is free and works on its own on one machine. For organizations, **Sprag 
 <a href="https://sprag.io/assets/video/plan-pro-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-en.gif" width="640" alt="A virtual office where every teammate sits as an animal character, then the organization dashboard with spend, savings, seats and a 30-day chart, then team rules approved once and picked up by every machine."></a>
 
 - Organization dashboard with a 30-day chart
-- A virtual office with an animal for each person
+- Sprag Town, a virtual office where each person sits as one of 30 animals picked by this month's ranking of spend and delegation
+- `sprag team town` opens the town for any member through a 12-hour link; other people show only their name, animal and team, never their figures
+- Desk props, head props and pets unlock as your usage and delegation grow, and your animal runs in the Sprag Bar menu bar
 - Seat roster with each machine's status
 - Team-approved rules applied at session start
 - Rollout with `sprag team join`

@@ -75,6 +75,18 @@ Sprag는 사용자가 고른 모델을 바꾸지 않습니다. 분석은 로컬 
 
 Codex를 쓴다면 아래 [Codex](#codex) 절을 보십시오.
 
+## Sprag Bar: macOS 메뉴 막대에서 모든 세션 보기
+
+Mac에서는 메뉴 막대에 동물 한 마리가 함께 뜹니다. 에이전트 세션이 기기를 많이 쓸수록 빨리 달리고 옆에 CPU 사용률이 나옵니다. 누르면 실행 중인 Claude Code와 Codex 세션이 모두 보입니다. 세션마다 모델과 effort, 지금 하는 일, 컨텍스트 사용량, 비용, CPU와 메모리가 나오고 계정별 5시간 한도와 주간 한도도 함께 나옵니다.
+
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-bar-panel.png" width="400" alt="Sprag Bar 패널. 세션 5개 가운데 3개는 작업 중이고 2개는 입력을 기다립니다. 줄마다 Claude인지 Codex인지, 맡은 일, 모델과 effort, 그 상태로 지난 시간, CPU, 메모리, 컨텍스트, 비용이 나옵니다.">
+
+대시보드 창은 세션을 프로젝트별로 묶고 각 세션이 지금 돌리는 도구 호출과 일을 넘긴 서브에이전트를 보여 줍니다. 타일의 이동 단추를 누르면 그 세션이 열린 Terminal.app이나 iTerm2 탭이 앞으로 나옵니다. 창 크기는 세 가지(⌘1, ⌘2, ⌘3)이고 끝난 세션이 남긴 프로세스는 목록에서 골라 끌 수 있습니다.
+
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-bar-dashboard.png" width="760" alt="중간 크기의 Sprag Bar 대시보드. 프로젝트별로 묶인 세션 타일마다 상태, 모델, 컨텍스트, CPU, 메모리, GPU, 비용과 지금 하는 단계(테스트를 돌리는 서브에이전트, npm test 등)가 나옵니다.">
+
+앱은 실행 파일로 배포하지 않습니다. 세션이 시작될 때 Sprag가 사용자의 Mac에서 Swift 소스를 컴파일하고 릴리스가 그 소스를 바꿨을 때만 다시 컴파일하므로 Xcode 명령줄 도구가 있어야 합니다. `sprag bar off` 로 끄고 `sprag bar on` 으로 다시 켭니다. 앱이 뜨지 않으면 `sprag bar status` 가 이유를 알려 줍니다. 팀에 들어 있으면 메뉴 막대 동물은 이번 달 [Sprag Town](#팀) 등급을 따릅니다.
+
 ## 작동 방식
 
 <picture>
@@ -304,7 +316,9 @@ CLI는 무료이고 컴퓨터 한 대에서 혼자 동작합니다. 조직에는
 <a href="https://sprag.io/assets/video/plan-pro-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-ko.gif" width="640" alt="팀원마다 동물 캐릭터로 앉아 있는 가상 사무실, 지출과 절감액, 좌석, 30일 차트가 있는 조직 대시보드, 한 번 승인하면 모든 컴퓨터에 적용되는 팀 규칙을 차례로 보여 줍니다."></a>
 
 - 조직 대시보드와 30일 추이 차트
-- 사람마다 동물 캐릭터가 앉아 있는 가상 사무실
+- Sprag Town: 이번 달 지출과 위임 순위에 따라 사람마다 동물 30종 가운데 하나로 앉아 있는 가상 사무실
+- 멤버 누구나 `sprag team town` 이 여는 12시간짜리 링크로 타운을 봅니다. 다른 사람은 이름과 동물과 팀만 보이고 수치는 보이지 않습니다.
+- 사용량과 위임 비율이 쌓이면 책상 소품과 머리 소품, 반려동물이 열립니다. 내 동물은 Sprag Bar 메뉴 막대에서도 달립니다.
 - 컴퓨터별 상태가 보이는 좌석 명단
 - 세션 시작 때 적용되는 팀 승인 규칙
 - `sprag team join` 으로 조직 배포
