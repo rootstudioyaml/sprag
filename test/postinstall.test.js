@@ -67,9 +67,13 @@ test('the converter installs are bounded and run no install scripts', () => {
   const require = createRequire(import.meta.url);
   const doc2md = require('../src/doc2md.cjs');
   const fig = require('../src/fig2md.cjs');
-  for (const spec of [doc2md.MARKITDOWN_SPEC, ...doc2md.EDIT_LIBS]) {
+  for (const spec of doc2md.installSpecs()) {
     assert.match(spec, />=\d[\d.]*,<\d[\d.]*$/, `no upper bound: ${spec}`);
   }
+  // lxml 6.2.0 broke every .docx conversion in markitdown (2026-11-27); the
+  // venv install has to keep it out until a release that converts is verified.
+  assert.deepEqual(doc2md.installSpecs().slice(0, 1 + doc2md.EDIT_LIBS.length), [doc2md.MARKITDOWN_SPEC, ...doc2md.EDIT_LIBS]);
+  assert.ok(doc2md.installSpecs().includes('lxml>=4.9,<6.2'), 'lxml is held below 6.2');
   assert.ok(fig.FIG_INSTALL_ARGS.includes('--ignore-scripts'));
   assert.equal(fig.FIG_INSTALL_ARGS.at(-1), fig.FIG_PARSER_SPEC);
 });

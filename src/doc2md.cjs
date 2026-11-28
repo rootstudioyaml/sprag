@@ -358,6 +358,16 @@ const MARKITDOWN_SPEC = 'markitdown[pptx,pdf,xlsx,docx]>=0.1,<0.2';
 // pre-installed so "swap the chart on slide 23" does not stall on pip.
 const EDIT_LIBS = ['python-pptx>=1.0,<2', 'python-docx>=1.1,<2', 'openpyxl>=3.1,<4'];
 
+// Transitive dependencies held below a release that broke conversion. None of
+// the specs above names them, so pip takes the newest on the day of install.
+// lxml 6.2.0 (2026-11-27) makes markitdown's DocxConverter fail on every .docx
+// with "Could not find the body element"; 6.1.3 converts the same file. Rerunning
+// `sprag doc2md install-converter` moves a venv built on 6.2.0 back down.
+const PIN_LIBS = ['lxml>=4.9,<6.2'];
+
+/** Everything one pip call installs into the managed venv, in order. */
+function installSpecs() { return [MARKITDOWN_SPEC, ...EDIT_LIBS, ...PIN_LIBS]; }
+
 /**
  * Build the managed venv and install markitdown into it.
  *
@@ -435,8 +445,8 @@ function installConverter({ onProgress = () => {} } = {}) {
     }
   }
 
-  onProgress(`installing ${MARKITDOWN_SPEC} + ${EDIT_LIBS.join(', ')}`);
-  const install = spawnSync(target, ['-m', 'pip', 'install', '--quiet', MARKITDOWN_SPEC, ...EDIT_LIBS], {
+  onProgress(`installing ${MARKITDOWN_SPEC} + ${EDIT_LIBS.join(', ')} + ${PIN_LIBS.join(', ')}`);
+  const install = spawnSync(target, ['-m', 'pip', 'install', '--quiet', ...installSpecs()], {
     encoding: 'utf8',
     timeout: 900_000,
     windowsHide: true,
@@ -1072,6 +1082,8 @@ module.exports = {
   INSTALL_HINT,
   MARKITDOWN_SPEC,
   EDIT_LIBS,
+  PIN_LIBS,
+  installSpecs,
   managedPython,
   installConverter,
   ensureConverterInstalled,
